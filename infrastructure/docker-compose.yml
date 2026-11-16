@@ -1,0 +1,61 @@
+# Инфраструктура LoadLab для локальной разработки.
+#
+# Запускается из КОРНЯ проекта (там лежит compose.yaml, который подключает этот файл):
+#   docker compose up -d                      — только база данных PostgreSQL
+#   docker compose --profile backend up -d    — база данных + backend
+#
+# Все значения ${...} берутся из файла .env в корне проекта.
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: loadlab-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-loadlab}
+      POSTGRES_USER: ${POSTGRES_USER:-loadlab}
+      # Пароля по умолчанию нет: без него в .env запуск остановится с понятной ошибкой.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в файле .env}
+    ports:
+      # 127.0.0.1 — база доступна только с этого компьютера, а не из локальной сети.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Именованный том: данные сохраняются при перезапуске и удалении контейнера.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    profiles: ["backend"]
+    build:
+      context: ../backend
+      args:
+        INSTALL_DEV: "true"
+    container_name: loadlab-backend
+    restart: unless-stopped
+    # --reload: backend сам перезапускается при изменении кода.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      # Внутри сети Docker база доступна по имени сервиса «db».
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-loadlab}
+      POSTGRES_USER: ${POSTGRES_USER:-loadlab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в файле .env}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8001}:8000"
+    volumes:
+      - ../backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    name: loadlab_postgres_data

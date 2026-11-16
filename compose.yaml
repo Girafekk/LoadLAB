@@ -1,0 +1,8 @@
+# Точка входа Docker Compose. Сами сервисы описаны в infrastructure/docker-compose.yml.
+# Этот файл нужен, чтобы команды запускались из корня проекта коротко:
+#   docker compose up -d
+name: loadlab
+
+include:
+  - path: infrastructure/docker-compose.yml
+    env_file: .env

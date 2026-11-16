@@ -1,0 +1,26 @@
+[project]
+name = "loadlab-backend"
+version = "0.1.0"
+description = "Backend образовательной платформы LoadLab"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F — базовые ошибки, I — порядок импортов, B — частые баги, UP — современный синтаксис.
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+# Папка backend/alembic называется так же, как библиотека; подсказываем, что это библиотека.
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Depends(...) в аргументах по умолчанию — стандартный приём FastAPI.
+extend-immutable-calls = ["fastapi.Depends"]

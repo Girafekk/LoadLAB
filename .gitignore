@@ -1,0 +1,44 @@
+# ── Секреты и локальные настройки ─────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── Python ────────────────────────────────────────────────
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ── Node.js / Next.js ─────────────────────────────────────
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+
+# ── Локальные данные базы и дампы ─────────────────────────
+postgres_data/
+pgdata/
+*.sql.gz
+*.dump
+
+# ── Временные файлы, редакторы, ОС ────────────────────────
+*.log
+*.tmp
+*.bak
+*.swp
+tmp/
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+.claude/settings.local.json
