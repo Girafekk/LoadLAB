@@ -31,12 +31,10 @@ export default function LearnPage() {
       <ol className="mt-10 space-y-4">
         {curriculumWeeks.map((week) => (
           <li key={week.number} className="rounded-xl border bg-card p-5 sm:p-6">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <Badge variant="secondary" className="font-mono">
-                Неделя {week.number}
-              </Badge>
-              <h2 className="text-lg font-semibold">{week.title}</h2>
-            </div>
+            <Badge variant="secondary" className="font-mono">
+              Неделя {week.number}
+            </Badge>
+            <h2 className="mt-3 text-lg font-semibold">{week.title}</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{week.summary}</p>
             <ul className="mt-4 grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
               {week.topics.map((topic) => (
