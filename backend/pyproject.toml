@@ -17,6 +17,12 @@ target-version = "py312"
 # E/F — базовые ошибки, I — порядок импортов, B — частые баги, UP — современный синтаксис.
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Названия уроков — длинные строки, переносить их незачем.
+"app/db/curriculum_data.py" = ["E501"]
+# Миграции создаёт Alembic; длинные строки в них допустимы.
+"alembic/versions/*.py" = ["E501"]
+
 [tool.ruff.lint.isort]
 # Папка backend/alembic называется так же, как библиотека; подсказываем, что это библиотека.
 known-third-party = ["alembic"]
