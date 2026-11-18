@@ -12,6 +12,8 @@
 | [../CLAUDE.md](../CLAUDE.md) | Правила разработки для AI-ассистента и разработчиков |
 | [TEACHING_METHOD.md](TEACHING_METHOD.md) | Методика преподавания и шаблон урока |
 | [REVIEW_BRIEF_STAGES_4-6.md](REVIEW_BRIEF_STAGES_4-6.md) | Задание независимому ревьюеру по этапам 4–6 |
-| [BROWSER_CHECKLIST.md](BROWSER_CHECKLIST.md) | Ручная проверка интерфейса после этапов 4–6 |
+| [BROWSER_CHECKLIST.md](BROWSER_CHECKLIST.md) | Короткий чек-лист ручной проверки интерфейса |
+| [MANUAL_BROWSER_RUN.md](MANUAL_BROWSER_RUN.md) | Подробный ручной прогон в браузере для владельца |
+| [API_SQL_RUN_REPORT.md](API_SQL_RUN_REPORT.md) | Отчёт живой проверки API и PostgreSQL |
 
 Сюда же в будущем добавляются описания принятых решений, схемы и инструкции по развёртыванию.
