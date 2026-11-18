@@ -20,6 +20,8 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.ruff.lint.per-file-ignores]
 # Названия уроков — длинные строки, переносить их незачем.
 "app/db/curriculum_data.py" = ["E501"]
+# Тексты демонстрационного урока — тоже содержимое, а не код.
+"app/db/demo_lesson.py" = ["E501"]
 # Миграции создаёт Alembic; длинные строки в них допустимы.
 "alembic/versions/*.py" = ["E501"]
 

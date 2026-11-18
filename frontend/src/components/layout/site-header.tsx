@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AuthMenu } from "@/components/layout/auth-menu";
 import { Logo } from "@/components/layout/logo";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -13,7 +14,7 @@ export function SiteHeader() {
       <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo />
 
-        <nav aria-label="Основная навигация" className="hidden md:block">
+        <nav aria-label="Основная навигация" className="hidden lg:block">
           <ul className="flex items-center gap-1">
             {siteConfig.nav.map((item) => (
               <li key={item.href}>
@@ -30,9 +31,12 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-1">
           <ThemeToggle />
+          <div className="hidden sm:block">
+            <AuthMenu />
+          </div>
           <Link
             href={siteConfig.learnHref}
-            className={cn(buttonVariants({ size: "lg" }), "hidden px-4 sm:inline-flex")}
+            className={cn(buttonVariants({ size: "lg" }), "hidden px-4 xl:inline-flex")}
           >
             Начать обучение
           </Link>

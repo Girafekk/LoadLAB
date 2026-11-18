@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 144" width="640" height="144">
+  <!-- Нейтральные цвета читаются и в светлой, и в тёмной теме.
+       SVG открывается как отдельная картинка, поэтому класс темы страницы
+       на него не действует. -->
+  <rect x="12" y="24" width="164" height="96" rx="12" fill="#475569" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="226" y="24" width="188" height="96" rx="12" fill="#475569" stroke="#94A3B8" stroke-width="2"/>
+  <rect x="464" y="24" width="164" height="96" rx="12" fill="#475569" stroke="#94A3B8" stroke-width="2"/>
+  <path d="M184 72h32m-8-8 8 8-8 8m214-8h32m-8-8 8 8-8 8" stroke="#94A3B8" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="94" y="79" text-anchor="middle" fill="#F8FAFC" font-family="system-ui, sans-serif" font-size="22" font-weight="600">Задача</text>
+  <text x="320" y="79" text-anchor="middle" fill="#F8FAFC" font-family="system-ui, sans-serif" font-size="22" font-weight="600">Разработка</text>
+  <text x="546" y="79" text-anchor="middle" fill="#F8FAFC" font-family="system-ui, sans-serif" font-size="22" font-weight="600">Проверка</text>
+</svg>

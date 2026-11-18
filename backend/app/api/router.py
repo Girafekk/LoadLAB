@@ -1,13 +1,20 @@
 """Главный маршрутизатор API версии 1.
 
-Каждая область (health, а в будущем auth, users, courses, lessons, quizzes,
-ai, admin) живёт в своём файле в папке `endpoints` и подключается здесь
+Каждая область (health, auth, users, admin, а в будущем courses, lessons,
+quizzes, ai) живёт в своём файле в папке `endpoints` и подключается здесь
 одной строкой.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from app.api.endpoints import health
+from app.api.endpoints import admin, auth, courses, health, lessons, users
+from app.core.csrf import verify_origin
 
-api_router = APIRouter()
+# verify_origin защищает от CSRF все изменяющие запросы (POST, PUT, PATCH, DELETE).
+api_router = APIRouter(dependencies=[Depends(verify_origin)])
 api_router.include_router(health.router, tags=["Служебные"])
+api_router.include_router(auth.router, tags=["Авторизация"])
+api_router.include_router(users.router, tags=["Пользователи"])
+api_router.include_router(admin.router, tags=["Администрирование"])
+api_router.include_router(courses.router, tags=["Курсы"])
+api_router.include_router(lessons.router, tags=["Уроки"])

@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.curriculum_data import COURSE, CourseData
+from app.db.demo_lesson import publish_demo_lesson
 from app.db.session import get_engine
 from app.models import Course, Lesson, Module
 
@@ -79,6 +80,7 @@ def seed_curriculum(session: Session, data: CourseData = COURSE) -> SeedResult:
 def main() -> None:
     with Session(get_engine()) as session:
         result = seed_curriculum(session)
+        blocks_created = publish_demo_lesson(session)
         session.commit()
 
         course_id = session.scalar(select(Course.id).where(Course.slug == COURSE.slug))
@@ -96,6 +98,7 @@ def main() -> None:
         f"модулей — {result.modules_created}, уроков — {result.lessons_created}."
     )
     print(f"Всего в курсе «{COURSE.title}»: модулей — {modules_total}, уроков — {lessons_total}.")
+    print(f"Демонстрационный урок опубликован, создано блоков — {blocks_created}.")
 
 
 if __name__ == "__main__":

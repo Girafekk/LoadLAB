@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BackendStatus } from "@/components/layout/backend-status";
 import { Logo } from "@/components/layout/logo";
+import { footerContent } from "@/content/layout";
 import { siteConfig } from "@/lib/site-config";
 
 export function SiteFooter() {
@@ -11,8 +12,7 @@ export function SiteFooter() {
         <div className="max-w-sm space-y-3">
           <Logo />
           <p className="text-sm leading-relaxed text-muted-foreground">
-            {siteConfig.tagline}. Проект находится в разработке: сейчас готов
-            технический фундамент, учебные материалы появятся на следующих этапах.
+            {siteConfig.tagline}. {footerContent.stage}
           </p>
         </div>
 

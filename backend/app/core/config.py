@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # Адреса frontend, которым разрешено обращаться к API из браузера (через запятую).
     cors_origins: str = "http://localhost:3000"
 
+    # Имя cookie, в которой браузер хранит токен сессии.
+    session_cookie_name: str = "loadlab_session"
+
     # --- База данных PostgreSQL ---
     postgres_host: str = "localhost"
     postgres_port: int = 5432
@@ -38,6 +41,10 @@ class Settings(BaseSettings):
     postgres_user: str = "loadlab"
     # Значения по умолчанию нет намеренно: пароль задаётся только в .env.
     postgres_password: str
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
 
     @property
     def cors_origin_list(self) -> list[str]:

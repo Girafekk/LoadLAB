@@ -4,15 +4,23 @@ import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
+import { authContent } from "@/content/auth";
 import { siteConfig } from "@/lib/site-config";
 
-/** Выпадающее меню навигации для узких экранов. */
+const { menu } = authContent;
+const ITEM_CLASSES =
+  "block w-full rounded-md px-2 py-3 text-left text-base font-medium text-foreground hover:bg-muted";
+
+/** Выпадающее меню навигации для узких и средних экранов (до 1024 px). */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const { status, user, logout } = useAuth();
+  const close = () => setOpen(false);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <Button
         variant="ghost"
         size="icon-lg"
@@ -33,16 +41,54 @@ export function MobileNav() {
           <ul className="mx-auto flex max-w-6xl flex-col px-4 py-2">
             {siteConfig.nav.map((item) => (
               <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-md px-2 py-3 text-base font-medium text-foreground hover:bg-muted"
-                >
+                <Link href={item.href} onClick={close} className={ITEM_CLASSES}>
                   {item.label}
                 </Link>
               </li>
             ))}
           </ul>
+
+          {status !== "loading" && (
+            <ul className="mx-auto flex max-w-6xl flex-col border-t px-4 py-2">
+              {user ? (
+                <>
+                  <li>
+                    <Link href="/profile" onClick={close} className={ITEM_CLASSES}>
+                      {menu.profile}
+                      <span className="block truncate text-sm font-normal text-muted-foreground">
+                        {user.email}
+                      </span>
+                    </Link>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      className={ITEM_CLASSES}
+                      onClick={() => {
+                        close();
+                        logout().catch(() => {});
+                      }}
+                    >
+                      {menu.logout}
+                    </button>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Link href="/login" onClick={close} className={ITEM_CLASSES}>
+                      {menu.login}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/register" onClick={close} className={ITEM_CLASSES}>
+                      {menu.register}
+                    </Link>
+                  </li>
+                </>
+              )}
+            </ul>
+          )}
         </nav>
       )}
     </div>

@@ -1,0 +1,86 @@
+# Репетиция production: отдельный проект Compose со своими контейнерами,
+# томами и портами. Разработку не затрагивает.
+#
+# Запуск из корня проекта:
+#   docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml up -d --build
+#
+# Отличия от infrastructure/docker-compose.yml:
+#   - образ backend собирается без dev-зависимостей (INSTALL_DEV=false);
+#   - uvicorn запускается без --reload, исходники в контейнер не монтируются;
+#   - ENVIRONMENT=production: cookie сессии получает флаг Secure, поэтому вход
+#     работает только по HTTPS — перед сервисами стоит Caddy с локальным сертификатом;
+#   - база данных отдельная, со своим томом.
+#
+# Frontend для этой репетиции запускается на компьютере в production-режиме:
+#   npm run build && npm run start -- -p 13000
+# при сборке NEXT_PUBLIC_API_URL=https://localhost:8443 (тот же адрес, что у прокси).
+
+services:
+  db-prod:
+    image: postgres:17-alpine
+    container_name: loadlab-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PROD_POSTGRES_DB:-loadlab_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-loadlab}
+      POSTGRES_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Задайте PROD_POSTGRES_PASSWORD в файле .env}
+    ports:
+      # Только для проверок с этого компьютера: psql, дампы, сверка данных.
+      - "127.0.0.1:${PROD_POSTGRES_PORT:-15433}:5432"
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend-prod:
+    build:
+      context: ../backend
+      args:
+        INSTALL_DEV: "false"
+    container_name: loadlab-prod-backend
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      ENVIRONMENT: production
+      # Через прокси браузер обращается к https://localhost:8443, поэтому
+      # проверка Origin (CSRF) должна разрешать именно этот адрес.
+      CORS_ORIGINS: ${PROD_CORS_ORIGINS:-https://localhost:8443}
+      # Своё имя cookie: cookie не разделяются по портам, и без этого
+      # production-стенд и разработка на localhost затирали бы сессии друг друга.
+      SESSION_COOKIE_NAME: ${PROD_SESSION_COOKIE_NAME:-loadlab_session_prod}
+      POSTGRES_HOST: db-prod
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${PROD_POSTGRES_DB:-loadlab_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-loadlab}
+      POSTGRES_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Задайте PROD_POSTGRES_PASSWORD в файле .env}
+    ports:
+      # Напрямую наружу не нужен, но порт полезен для проверок и отладки.
+      - "127.0.0.1:${PROD_BACKEND_PORT:-18000}:8000"
+    depends_on:
+      db-prod:
+        condition: service_healthy
+
+  proxy:
+    image: caddy:2.8-alpine
+    container_name: loadlab-prod-proxy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    extra_hosts:
+      # Прокси обращается к frontend, запущенному на компьютере.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - backend-prod
+
+volumes:
+  prod_postgres_data:
+    name: loadlab_prod_postgres_data
+  caddy_data:
+    name: loadlab_prod_caddy_data

@@ -4,17 +4,16 @@ import { useEffect, useState } from "react";
 
 import { fetchHealth } from "@/lib/api";
 
-type Status = "checking" | "online" | "offline";
+import { backendStatusContent as TEXT } from "@/content/layout";
 
-const LABELS: Record<Status, string> = {
-  checking: "Проверяем сервер…",
-  online: "Сервер работает",
-  offline: "Сервер недоступен",
-};
+// «online» — работают и backend, и база; «databaseUnavailable» — backend отвечает,
+// но база недоступна: войти и сохранить данные не получится, и зелёный цвет соврёт.
+type Status = "checking" | "online" | "databaseUnavailable" | "offline";
 
 const DOT_CLASSES: Record<Status, string> = {
   checking: "bg-muted-foreground/50",
   online: "bg-success",
+  databaseUnavailable: "bg-warning",
   offline: "bg-destructive",
 };
 
@@ -32,7 +31,8 @@ export function BackendStatus() {
     fetchHealth(controller.signal)
       .then((health) => {
         setVersion(health.version);
-        setStatus(health.status === "ok" ? "online" : "offline");
+        if (health.status !== "ok") setStatus("offline");
+        else setStatus(health.database === "ok" ? "online" : "databaseUnavailable");
       })
       .catch(() => {
         if (!controller.signal.aborted) setStatus("offline");
@@ -45,7 +45,7 @@ export function BackendStatus() {
     <p className="flex items-center gap-2" role="status">
       <span className={`size-2 rounded-full ${DOT_CLASSES[status]}`} aria-hidden="true" />
       <span>
-        {LABELS[status]}
+        {TEXT[status]}
         {status === "online" && version ? ` · API v${version}` : ""}
       </span>
     </p>

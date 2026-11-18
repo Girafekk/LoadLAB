@@ -42,3 +42,6 @@ desktop.ini
 .idea/
 .vscode/
 .claude/settings.local.json
+
+# ── Служебные файлы проверки прав Windows ─────────────────
+.acl-recovery/

@@ -1,6 +1,8 @@
+import pytest
 from sqlalchemy import func, select
 
 from app.db.curriculum_data import COURSE
+from app.db.demo_lesson import DEMO_LESSON_BLOCKS, publish_demo_lesson
 from app.db.seed import seed_curriculum
 from app.models import Course, Lesson, LessonBlock, Module
 
@@ -52,3 +54,50 @@ def test_seed_restores_only_missing_rows(db_session):
 
     assert (result.courses_created, result.modules_created, result.lessons_created) == (0, 0, 1)
     assert _count(db_session, Lesson) == 60
+
+
+def test_demo_lesson_publishes_the_course_and_first_lesson(db_session):
+    seed_curriculum(db_session)
+
+    created = publish_demo_lesson(db_session)
+
+    assert created == len(DEMO_LESSON_BLOCKS) == 14
+    course = db_session.scalar(select(Course).where(Course.slug == "load-testing"))
+    assert course.is_published is True
+    first_lesson = course.modules[0].lessons[0]
+    assert first_lesson.is_published is True
+    # Остальные уроки остаются черновиками: контент для них — этап 9.
+    assert _count(db_session, LessonBlock) == 14
+    assert [block.position for block in first_lesson.blocks] == list(range(1, 15))
+
+
+def test_demo_lesson_is_not_duplicated_on_repeat(db_session):
+    seed_curriculum(db_session)
+    publish_demo_lesson(db_session)
+
+    assert publish_demo_lesson(db_session) == 0
+    assert _count(db_session, LessonBlock) == 14
+
+
+def test_demo_lesson_does_not_republish_an_unpublished_lesson(db_session):
+    """Повторный сид не возвращает в публикацию то, что сняли вручную."""
+    seed_curriculum(db_session)
+    publish_demo_lesson(db_session)
+    course = db_session.scalar(select(Course).where(Course.slug == "load-testing"))
+    first_lesson = course.modules[0].lessons[0]
+    course.is_published = False
+    first_lesson.is_published = False
+    db_session.flush()
+
+    assert publish_demo_lesson(db_session) == 0
+
+    db_session.expire_all()
+    course = db_session.scalar(select(Course).where(Course.slug == "load-testing"))
+    assert course.is_published is False
+    assert course.modules[0].lessons[0].is_published is False
+    assert _count(db_session, LessonBlock) == 14
+
+
+def test_demo_lesson_requires_the_course_structure(db_session):
+    with pytest.raises(RuntimeError, match="Сначала загрузите структуру курса"):
+        publish_demo_lesson(db_session)

@@ -1,9 +1,12 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Course, Lesson, LessonBlock, Module, User
+from app.core.security import hash_session_token
+from app.models import Course, Lesson, LessonBlock, Module, User, UserSession
 
 
 def _count(session: Session, model: type) -> int:
@@ -99,4 +102,61 @@ def test_unknown_block_type_is_rejected(db_session):
 
     db_session.add(LessonBlock(lesson_id=lesson.id, type="video", content={}, position=3))
     with pytest.raises(IntegrityError, match="ck_lesson_blocks_type"):
+        db_session.flush()
+
+
+# --- Сессии входа -----------------------------------------------------------------
+
+
+def _user_with_session(session: Session, email: str = "student@example.com") -> User:
+    user = User(email=email, password_hash="hash")
+    user.sessions = [
+        UserSession(
+            token_hash=hash_session_token(f"token-{email}"),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
+        )
+    ]
+    session.add(user)
+    session.flush()
+    return user
+
+
+def test_user_session_is_stored_and_readable(db_session):
+    user = _user_with_session(db_session)
+    db_session.expire_all()
+
+    stored = db_session.get(User, user.id)
+
+    assert len(stored.sessions) == 1
+    assert stored.sessions[0].user is stored
+    assert stored.sessions[0].expires_at > datetime.now(UTC)
+    # created_at заполняет база, а не Python-код.
+    assert stored.sessions[0].created_at is not None
+
+
+def test_deleting_user_cascades_to_sessions_in_database(db_session):
+    user_id = _user_with_session(db_session).id
+    db_session.expire_all()
+
+    # Удаляем строку средствами SQL, минуя ORM: так проверяется именно
+    # ON DELETE CASCADE в базе, а не cascade="all, delete-orphan" в Python.
+    db_session.execute(delete(User).where(User.id == user_id))
+    db_session.flush()
+
+    assert _count(db_session, User) == 0
+    assert _count(db_session, UserSession) == 0
+
+
+def test_duplicate_session_token_is_rejected(db_session):
+    first = _user_with_session(db_session).sessions[0]
+    second_user = _user_with_session(db_session, email="other@example.com")
+
+    db_session.add(
+        UserSession(
+            user_id=second_user.id,
+            token_hash=first.token_hash,
+            expires_at=datetime.now(UTC) + timedelta(days=7),
+        )
+    )
+    with pytest.raises(IntegrityError, match="uq_sessions_token_hash"):
         db_session.flush()
