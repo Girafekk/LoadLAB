@@ -9,6 +9,7 @@ from app.db.base import Base
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.quiz_attempt import QuizAttempt
     from app.models.user_session import UserSession
 
 USER_ROLES = ("student", "admin")
@@ -30,4 +31,7 @@ class User(TimestampMixin, Base):
 
     sessions: Mapped[list[UserSession]] = relationship(
         back_populates="user", cascade="all, delete-orphan", passive_deletes=True
+    )
+    quiz_attempts: Mapped[list[QuizAttempt]] = relationship(
+        back_populates="user", passive_deletes=True
     )

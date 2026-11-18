@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
+import { LessonQuiz } from "@/components/learn/lesson-quiz";
+import { LessonTools } from "@/components/learn/lesson-tools";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { learnContent as t } from "@/content/learn";
@@ -164,7 +166,20 @@ function Message({
 }
 
 export function LessonView({ lessonId }: { lessonId: number | null }) {
-  const { status: authStatus, clearSession } = useAuth();
+  const { user } = useAuth();
+  // Ключ включает урок и ученика: Next сохраняет состояние клиентских
+  // компонентов при навигации, поэтому без ключа новый урок увидел бы
+  // результат и прогресс предыдущего.
+  return (
+    <LessonViewContent
+      key={`lesson-${lessonId ?? "none"}-${user?.id ?? "guest"}`}
+      lessonId={lessonId}
+    />
+  );
+}
+
+function LessonViewContent({ lessonId }: { lessonId: number | null }) {
+  const { status: authStatus, clearSession, user } = useAuth();
   const [status, setStatus] = useState<Status>("loading");
   const [lesson, setLesson] = useState<LessonRead | null>(null);
   const [course, setCourse] = useState<CourseOverview | null>(null);
@@ -362,6 +377,10 @@ export function LessonView({ lessonId }: { lessonId: number | null }) {
           ))}
         </div>
       )}
+
+      {/* Ключ по ученику: при смене пользователя квиз и материалы начинаются заново. */}
+      <LessonQuiz key={`quiz-${lessonId}-${user?.id ?? "guest"}`} lessonId={lessonId} />
+      <LessonTools key={`tools-${lessonId}-${user?.id ?? "guest"}`} lessonId={lessonId} />
 
       <div className="mt-10 flex flex-wrap items-center gap-3">
         <Button size="lg" className="px-4" onClick={toggleCompleted} disabled={saving}>

@@ -3,8 +3,14 @@ from sqlalchemy import func, select
 
 from app.db.curriculum_data import COURSE
 from app.db.demo_lesson import DEMO_LESSON_BLOCKS, publish_demo_lesson
-from app.db.seed import seed_curriculum
-from app.models import Course, Lesson, LessonBlock, Module
+from app.db.demo_quiz import DEMO_QUIZ_QUESTIONS, publish_demo_quiz
+from app.db.seed import (
+    clear_demo_content,
+    demo_publication_state,
+    restore_demo_publication,
+    seed_curriculum,
+)
+from app.models import Course, Lesson, LessonBlock, Module, Quiz
 
 
 def _count(session, model) -> int:
@@ -101,3 +107,30 @@ def test_demo_lesson_does_not_republish_an_unpublished_lesson(db_session):
 def test_demo_lesson_requires_the_course_structure(db_session):
     with pytest.raises(RuntimeError, match="Сначала загрузите структуру курса"):
         publish_demo_lesson(db_session)
+
+
+def test_refresh_demo_recreates_content_and_keeps_publication(db_session):
+    seed_curriculum(db_session)
+    publish_demo_lesson(db_session)
+    publish_demo_quiz(db_session)
+    course = db_session.scalar(select(Course).where(Course.slug == "load-testing"))
+    lesson = course.modules[0].lessons[0]
+    lesson.is_published = False
+    db_session.flush()
+
+    state = demo_publication_state(db_session)
+    assert state == (True, False)
+
+    clear_demo_content(db_session)
+    assert publish_demo_lesson(db_session) == len(DEMO_LESSON_BLOCKS)
+    assert publish_demo_quiz(db_session) == len(DEMO_QUIZ_QUESTIONS)
+    restore_demo_publication(db_session, state)
+    db_session.flush()
+    db_session.expire_all()
+
+    course = db_session.scalar(select(Course).where(Course.slug == "load-testing"))
+    lesson = course.modules[0].lessons[0]
+    # Контент пересобран, но скрытый урок не опубликован заново.
+    assert lesson.is_published is False
+    assert len(lesson.blocks) == len(DEMO_LESSON_BLOCKS)
+    assert db_session.scalar(select(func.count()).select_from(Quiz)) == 1

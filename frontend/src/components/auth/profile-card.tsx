@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AuthCard, FormError } from "@/components/auth/auth-card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { authContent } from "@/content/auth";
+import { toolsContent } from "@/content/tools";
+import { cn } from "@/lib/utils";
 
 const { profile: text, roles, errors } = authContent;
 
@@ -64,6 +67,12 @@ export function ProfileCard() {
 
       <div className="mt-6 space-y-3 border-t pt-6">
         <FormError message={error} />
+        <Link
+          href="/profile/tools"
+          className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-10 w-full text-base")}
+        >
+          {toolsContent.profileTitle}
+        </Link>
         <Button
           variant="outline"
           size="lg"

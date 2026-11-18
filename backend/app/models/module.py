@@ -11,6 +11,7 @@ from app.models.mixins import TimestampMixin
 if TYPE_CHECKING:
     from app.models.course import Course
     from app.models.lesson import Lesson
+    from app.models.quiz import Quiz
 
 
 class Module(TimestampMixin, Base):
@@ -31,5 +32,10 @@ class Module(TimestampMixin, Base):
         back_populates="module",
         order_by="Lesson.position",
         cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    quiz: Mapped[Quiz | None] = relationship(
+        back_populates="module",
+        uselist=False,
         passive_deletes=True,
     )

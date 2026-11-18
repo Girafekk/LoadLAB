@@ -45,3 +45,62 @@ export type LessonRead = {
   is_completed: boolean;
   blocks: LessonBlock[];
 };
+
+export type QuizOption = {
+  id: number;
+  text: string;
+  position: number;
+};
+
+export type QuizQuestion = {
+  id: number;
+  kind: string;
+  text: string;
+  position: number;
+  multiple: boolean;
+  options: QuizOption[];
+};
+
+export type QuizRead = {
+  id: number;
+  title: string;
+  description: string | null;
+  questions: QuizQuestion[];
+};
+
+export type QuizAttemptSummary = {
+  id: number;
+  score: number;
+  max_score: number;
+  percent: number;
+  created_at: string;
+};
+
+export type QuizWithHistory = {
+  quiz: QuizRead;
+  attempts: QuizAttemptSummary[];
+  attempts_total: number;
+  best_percent: number | null;
+};
+
+export type QuizAnswerInput = {
+  question_id: number;
+  option_ids: number[];
+};
+
+export type QuizQuestionResult = {
+  question_id: number;
+  is_correct: boolean;
+  selected_option_ids: number[];
+  correct_option_ids: number[];
+  explanation: string;
+};
+
+export type QuizAttemptResult = {
+  id: number;
+  score: number;
+  max_score: number;
+  percent: number;
+  created_at: string;
+  questions: QuizQuestionResult[];
+};

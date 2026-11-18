@@ -11,6 +11,17 @@ APP_TABLES = {
     "lesson_blocks",
     "sessions",
     "lesson_progress",
+    "quizzes",
+    "quiz_questions",
+    "quiz_options",
+    "quiz_attempts",
+    "quiz_attempt_answers",
+    "quiz_attempt_selected_options",
+    "lesson_notes",
+    "lesson_highlights",
+    "saved_questions",
+    "review_items",
+    "cheatsheets",
 }
 
 
@@ -55,7 +66,6 @@ def test_sessions_table_matches_model(test_engine):
 
 def test_lesson_progress_table_matches_model(test_engine):
     inspector = inspect(test_engine)
-
     columns = {column["name"] for column in inspector.get_columns("lesson_progress")}
     assert columns == {"user_id", "lesson_id", "completed_at"}
 
@@ -76,6 +86,73 @@ def test_lesson_progress_table_matches_model(test_engine):
 
     index_names = {index["name"] for index in inspector.get_indexes("lesson_progress")}
     assert "ix_lesson_progress_lesson_id" in index_names
+
+
+def test_quiz_tables_match_model(test_engine):
+    inspector = inspect(test_engine)
+
+    quiz_columns = {column["name"] for column in inspector.get_columns("quizzes")}
+    assert quiz_columns == {
+        "id",
+        "lesson_id",
+        "module_id",
+        "title",
+        "description",
+        "is_published",
+        "created_at",
+        "updated_at",
+    }
+    assert inspector.get_pk_constraint("quizzes")["name"] == "pk_quizzes"
+    unique_names = {
+        constraint["name"] for constraint in inspector.get_unique_constraints("quizzes")
+    }
+    assert {"uq_quizzes_lesson_id", "uq_quizzes_module_id"} <= unique_names
+    check_names = {constraint["name"] for constraint in inspector.get_check_constraints("quizzes")}
+    assert "ck_quizzes_one_parent" in check_names
+
+    question_columns = {column["name"] for column in inspector.get_columns("quiz_questions")}
+    assert {"kind", "text", "explanation", "position"} <= question_columns
+    option_columns = {column["name"] for column in inspector.get_columns("quiz_options")}
+    assert {"text", "is_correct", "position"} <= option_columns
+
+    attempt_indexes = {index["name"] for index in inspector.get_indexes("quiz_attempts")}
+    assert {"ix_quiz_attempts_quiz_id", "ix_quiz_attempts_user_id"} <= attempt_indexes
+
+    answer_columns = {column["name"] for column in inspector.get_columns("quiz_attempt_answers")}
+    assert {"attempt_id", "question_id", "is_correct"} <= answer_columns
+
+    selected_columns = {
+        column["name"] for column in inspector.get_columns("quiz_attempt_selected_options")
+    }
+    assert selected_columns == {"answer_id", "option_id"}
+
+
+def test_student_tools_tables_match_model(test_engine):
+    inspector = inspect(test_engine)
+
+    assert {column["name"] for column in inspector.get_columns("lesson_notes")} >= {
+        "user_id",
+        "lesson_id",
+        "content",
+    }
+    note_unique = {
+        constraint["name"] for constraint in inspector.get_unique_constraints("lesson_notes")
+    }
+    assert "uq_lesson_notes_user_id_lesson_id" in note_unique
+
+    highlight_indexes = {index["name"] for index in inspector.get_indexes("lesson_highlights")}
+    assert "ix_lesson_highlights_user_id_lesson_id" in highlight_indexes
+
+    for table in ("saved_questions", "review_items", "cheatsheets"):
+        columns = {column["name"] for column in inspector.get_columns(table)}
+        assert {"user_id", "lesson_id"} <= columns
+        (lesson_fk,) = [
+            foreign_key
+            for foreign_key in inspector.get_foreign_keys(table)
+            if foreign_key["constrained_columns"] == ["lesson_id"]
+        ]
+        # Личные записи не должны исчезать вместе с уроком.
+        assert lesson_fk["options"]["ondelete"] == "SET NULL"
 
 
 def test_downgrade_base_removes_all_tables(test_engine):

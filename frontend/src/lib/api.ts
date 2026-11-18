@@ -7,7 +7,22 @@
  * и прикладывает к запросам, а JavaScript прочитать её не может. Поэтому здесь
  * нет ни токенов, ни localStorage — только `credentials: "include"`.
  */
-import type { CourseOverview, LessonRead } from "@/lib/learn-types";
+import type {
+  CourseOverview,
+  LessonRead,
+  QuizAnswerInput,
+  QuizAttemptResult,
+  QuizWithHistory,
+} from "@/lib/learn-types";
+
+import type {
+  Cheatsheet,
+  LessonHighlight,
+  LessonNote,
+  ReviewItem,
+  SavedQuestion,
+  WeakTopic,
+} from "@/lib/tools-types";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
@@ -53,7 +68,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
 };
@@ -135,4 +150,120 @@ export function setLessonCompleted(lessonId: number, completed: boolean): Promis
   return apiRequest<void>(`/lessons/${lessonId}/complete`, {
     method: completed ? "POST" : "DELETE",
   });
+}
+
+/** Квиз урока с историей попыток. 404 — квиза ещё нет. */
+export function fetchLessonQuiz(lessonId: number, signal?: AbortSignal): Promise<QuizWithHistory> {
+  return apiRequest<QuizWithHistory>(`/lessons/${lessonId}/quiz`, { signal });
+}
+
+/** Отправка ответов. Проверку выполняет только сервер. */
+export function submitQuizAttempt(
+  lessonId: number,
+  answers: QuizAnswerInput[],
+): Promise<QuizAttemptResult> {
+  return apiRequest<QuizAttemptResult>(`/lessons/${lessonId}/quiz/attempts`, {
+    method: "POST",
+    body: { answers },
+  });
+}
+
+// --- Инструменты ученика ---------------------------------------------------------
+
+export function fetchNote(lessonId: number, signal?: AbortSignal): Promise<LessonNote> {
+  return apiRequest<LessonNote>(`/lessons/${lessonId}/note`, { signal });
+}
+
+export function saveNote(lessonId: number, content: string): Promise<LessonNote> {
+  return apiRequest<LessonNote>(`/lessons/${lessonId}/note`, {
+    method: "PUT",
+    body: { content },
+  });
+}
+
+export function fetchHighlights(
+  lessonId: number,
+  signal?: AbortSignal,
+): Promise<LessonHighlight[]> {
+  return apiRequest<LessonHighlight[]>(`/lessons/${lessonId}/highlights`, { signal });
+}
+
+export function addHighlight(lessonId: number, text: string): Promise<LessonHighlight> {
+  return apiRequest<LessonHighlight>(`/lessons/${lessonId}/highlights`, {
+    method: "POST",
+    body: { text },
+  });
+}
+
+export function deleteHighlight(highlightId: number): Promise<void> {
+  return apiRequest<void>(`/highlights/${highlightId}`, { method: "DELETE" });
+}
+
+export function fetchSavedQuestions(signal?: AbortSignal): Promise<SavedQuestion[]> {
+  return apiRequest<SavedQuestion[]>("/saved-questions", { signal });
+}
+
+export function createSavedQuestion(
+  text: string,
+  lessonId: number | null,
+): Promise<SavedQuestion> {
+  return apiRequest<SavedQuestion>("/saved-questions", {
+    method: "POST",
+    body: { text, lesson_id: lessonId },
+  });
+}
+
+export function setSavedQuestionResolved(
+  questionId: number,
+  isResolved: boolean,
+): Promise<SavedQuestion> {
+  return apiRequest<SavedQuestion>(`/saved-questions/${questionId}`, {
+    method: "PATCH",
+    body: { is_resolved: isResolved },
+  });
+}
+
+export function deleteSavedQuestion(questionId: number): Promise<void> {
+  return apiRequest<void>(`/saved-questions/${questionId}`, { method: "DELETE" });
+}
+
+export function fetchReviewItems(signal?: AbortSignal): Promise<ReviewItem[]> {
+  return apiRequest<ReviewItem[]>("/review-items", { signal });
+}
+
+export function createReviewItem(title: string, note: string | null): Promise<ReviewItem> {
+  return apiRequest<ReviewItem>("/review-items", {
+    method: "POST",
+    body: { title, note },
+  });
+}
+
+export function setReviewItemDone(itemId: number, isDone: boolean): Promise<ReviewItem> {
+  return apiRequest<ReviewItem>(`/review-items/${itemId}`, {
+    method: "PATCH",
+    body: { is_done: isDone },
+  });
+}
+
+export function deleteReviewItem(itemId: number): Promise<void> {
+  return apiRequest<void>(`/review-items/${itemId}`, { method: "DELETE" });
+}
+
+export function fetchCheatsheets(signal?: AbortSignal): Promise<Cheatsheet[]> {
+  return apiRequest<Cheatsheet[]>("/cheatsheets", { signal });
+}
+
+export function createCheatsheet(title: string, content: string): Promise<Cheatsheet> {
+  return apiRequest<Cheatsheet>("/cheatsheets", {
+    method: "POST",
+    body: { title, content },
+  });
+}
+
+export function deleteCheatsheet(cheatsheetId: number): Promise<void> {
+  return apiRequest<void>(`/cheatsheets/${cheatsheetId}`, { method: "DELETE" });
+}
+
+export function fetchWeakTopics(signal?: AbortSignal): Promise<WeakTopic[]> {
+  return apiRequest<WeakTopic[]>("/users/me/weak-topics", { signal });
 }

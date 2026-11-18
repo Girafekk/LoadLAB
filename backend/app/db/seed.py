@@ -8,15 +8,17 @@
 то, чего ещё нет в базе, и не меняет и не удаляет существующие строки.
 """
 
+import argparse
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.curriculum_data import COURSE, CourseData
 from app.db.demo_lesson import publish_demo_lesson
+from app.db.demo_quiz import publish_demo_quiz
 from app.db.session import get_engine
-from app.models import Course, Lesson, Module
+from app.models import Course, Lesson, LessonBlock, Module, Quiz
 
 
 @dataclass(frozen=True)
@@ -77,10 +79,84 @@ def seed_curriculum(session: Session, data: CourseData = COURSE) -> SeedResult:
     return SeedResult(courses_created, modules_created, lessons_created)
 
 
+def clear_demo_content(session: Session) -> None:
+    """Удаляет блоки демо-урока и демо-квиз вместе с попытками.
+
+    Нужно только для обновления демонстрационного контента при разработке:
+    обычный сид никогда не меняет существующие строки. Попытки квиза при этом
+    удаляются, поэтому команда не предназначена для рабочих баз.
+    """
+    lesson = session.scalar(
+        select(Lesson)
+        .join(Module)
+        .join(Course)
+        .where(
+            Course.slug == COURSE.slug,
+            Module.position == 1,
+            Lesson.position == 1,
+        )
+    )
+    if lesson is None:
+        return
+    session.execute(delete(LessonBlock).where(LessonBlock.lesson_id == lesson.id))
+    session.execute(delete(Quiz).where(Quiz.lesson_id == lesson.id))
+    session.flush()
+
+
+def demo_publication_state(session: Session) -> tuple[bool, bool] | None:
+    """Запоминает, были ли курс и демо-урок опубликованы до обновления контента."""
+    course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
+    if course is None:
+        return None
+    lesson = session.scalar(
+        select(Lesson)
+        .join(Module)
+        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
+    )
+    if lesson is None:
+        return None
+    return course.is_published, lesson.is_published
+
+
+def restore_demo_publication(session: Session, state: tuple[bool, bool]) -> None:
+    """Возвращает прежние флаги публикации после пересоздания контента.
+
+    Обычный сид публикует демо-урок только при первом наполнении. Команда
+    `--refresh-demo` не должна заново открывать то, что администратор скрыл.
+    """
+    course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
+    if course is None:
+        return
+    lesson = session.scalar(
+        select(Lesson)
+        .join(Module)
+        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
+    )
+    course.is_published = state[0]
+    if lesson is not None:
+        lesson.is_published = state[1]
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Загрузка структуры курса и демонстрационных материалов."
+    )
+    parser.add_argument(
+        "--refresh-demo",
+        action="store_true",
+        help="пересоздать блоки демо-урока и демо-квиз (попытки квиза удаляются)",
+    )
+    args = parser.parse_args()
+
     with Session(get_engine()) as session:
         result = seed_curriculum(session)
+        publication_state = demo_publication_state(session) if args.refresh_demo else None
+        if args.refresh_demo:
+            clear_demo_content(session)
         blocks_created = publish_demo_lesson(session)
+        quiz_questions_created = publish_demo_quiz(session)
+        if publication_state is not None:
+            restore_demo_publication(session, publication_state)
         session.commit()
 
         course_id = session.scalar(select(Course.id).where(Course.slug == COURSE.slug))
@@ -99,6 +175,7 @@ def main() -> None:
     )
     print(f"Всего в курсе «{COURSE.title}»: модулей — {modules_total}, уроков — {lessons_total}.")
     print(f"Демонстрационный урок опубликован, создано блоков — {blocks_created}.")
+    print(f"Демонстрационный квиз опубликован, создано вопросов — {quiz_questions_created}.")
 
 
 if __name__ == "__main__":
