@@ -166,20 +166,20 @@ function Message({
 }
 
 export function LessonView({ lessonId }: { lessonId: number | null }) {
-  const { user } = useAuth();
-  // Ключ включает урок и ученика: Next сохраняет состояние клиентских
-  // компонентов при навигации, поэтому без ключа новый урок увидел бы
-  // результат и прогресс предыдущего.
+  const { user, version } = useAuth();
+  // Ключ включает урок, ученика и версию сессии: Next сохраняет состояние
+  // клиентских компонентов при навигации, поэтому без ключа новый урок или
+  // новый ученик увидел бы результат и прогресс предыдущего.
   return (
     <LessonViewContent
-      key={`lesson-${lessonId ?? "none"}-${user?.id ?? "guest"}`}
+      key={`lesson-${lessonId ?? "none"}-${user?.id ?? "guest"}-${version}`}
       lessonId={lessonId}
     />
   );
 }
 
 function LessonViewContent({ lessonId }: { lessonId: number | null }) {
-  const { status: authStatus, clearSession, user } = useAuth();
+  const { status: authStatus, clearSession, user, version } = useAuth();
   const [status, setStatus] = useState<Status>("loading");
   const [lesson, setLesson] = useState<LessonRead | null>(null);
   const [course, setCourse] = useState<CourseOverview | null>(null);
@@ -211,7 +211,7 @@ function LessonViewContent({ lessonId }: { lessonId: number | null }) {
         if (error instanceof ApiError && error.status === 401) {
           // Сессия истекла: сообщаем об этом общему провайдеру, иначе страница
           // входа увидит «authenticated» и вернёт человека к уроку снова.
-          clearSession();
+          clearSession(version);
           setStatus("guest");
         } else if (error instanceof ApiError && error.status === 404) {
           setStatus("notFound");
@@ -233,7 +233,7 @@ function LessonViewContent({ lessonId }: { lessonId: number | null }) {
       });
 
     return () => controller.abort();
-  }, [authStatus, lessonId, reloadToken, clearSession]);
+  }, [authStatus, lessonId, reloadToken, clearSession, version]);
 
   if (authStatus === "loading") {
     return (
@@ -317,8 +317,12 @@ function LessonViewContent({ lessonId }: { lessonId: number | null }) {
     } catch (error) {
       // Истёкшая сессия: предлагаем войти заново, а не «повторить сохранение».
       if (error instanceof ApiError && error.status === 401) {
-        clearSession();
+        clearSession(version);
         setStatus("guest");
+      } else if (error instanceof ApiError && error.status === 409) {
+        // В другой вкладке вошли другим учеником: страница будет пересоздана
+        // после обновления владельца сессии.
+        setSaveError(t.sessionChanged);
       } else {
         setSaveError(t.saveError);
       }

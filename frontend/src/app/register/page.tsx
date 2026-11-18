@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { RegisterForm } from "@/components/auth/register-form";
+import { RegisterFormGate } from "@/components/auth/auth-form-gate";
 import { authContent } from "@/content/auth";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export default function RegisterPage() {
   // Suspense нужен, потому что форма читает параметр ?next= из адреса.
   return (
     <Suspense>
-      <RegisterForm />
+      <RegisterFormGate />
     </Suspense>
   );
 }

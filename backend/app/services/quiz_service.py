@@ -44,7 +44,9 @@ class QuizContentError(Exception):
 
 
 def _percent(score: int, max_score: int) -> int:
-    return round(100 * score / max_score) if max_score else 0
+    # Округляем вниз: 79,9 % не должно выглядеть как 80 % и одновременно
+    # считаться слабой темой. Тот же принцип использует weak_topics_service.
+    return (100 * score) // max_score if max_score else 0
 
 
 def _ensure_valid_content(quiz: Quiz) -> None:

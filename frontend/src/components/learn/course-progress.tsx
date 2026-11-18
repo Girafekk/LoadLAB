@@ -23,7 +23,7 @@ type Status = "loading" | "ready" | "error";
  * Гость видит программу и приглашение войти, вошедший — свои отметки.
  */
 export function CourseProgress() {
-  const { status: authStatus } = useAuth();
+  const { status: authStatus, user, version } = useAuth();
   const [course, setCourse] = useState<CourseOverview | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("loading");
@@ -31,6 +31,7 @@ export function CourseProgress() {
   // Номер последнего запроса: ответ на устаревший запрос не должен
   // перезаписать более свежие данные (например, после выхода).
   const requestId = useRef(0);
+  const ownerKey = `${authStatus}:${user?.id ?? 0}:${version}`;
 
   useEffect(() => {
     if (authStatus === "loading") return;
@@ -40,23 +41,21 @@ export function CourseProgress() {
       .then((data) => {
         if (requestId.current !== id) return;
         setCourse(data);
-        setLoadedFor(authStatus);
+        setLoadedFor(ownerKey);
         setStatus("ready");
       })
       .catch(() => {
         if (requestId.current === id && !controller.signal.aborted) setStatus("error");
       });
     return () => controller.abort();
-  }, [authStatus, reloadToken]);
+  }, [authStatus, ownerKey, reloadToken]);
 
   function retry() {
     setStatus("loading");
     setReloadToken((value) => value + 1);
   }
 
-  // Пока данные относятся к прошлому состоянию входа, личный прогресс
-  // не показываем: после выхода старые проценты видны не должны.
-  if (authStatus === "loading" || status === "loading" || loadedFor !== authStatus) {
+  if (authStatus === "loading") {
     return (
       <p className="mt-8 rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground">
         {t.loadingProgram}
@@ -64,6 +63,8 @@ export function CourseProgress() {
     );
   }
 
+  // Ошибку показываем раньше ожидания: иначе при первом же сбое ученик
+  // навсегда видит «Загружаем программу…» и не получает кнопку «Повторить».
   if (status === "error" || course === null) {
     return (
       <div className="mt-8 rounded-xl border bg-card px-5 py-6">
@@ -72,6 +73,16 @@ export function CourseProgress() {
           {t.retry}
         </Button>
       </div>
+    );
+  }
+
+  // Пока данные относятся к прошлому состоянию входа, личный прогресс
+  // не показываем: после выхода старые проценты видны не должны.
+  if (status === "loading" || loadedFor !== ownerKey) {
+    return (
+      <p className="mt-8 rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground">
+        {t.loadingProgram}
+      </p>
     );
   }
 

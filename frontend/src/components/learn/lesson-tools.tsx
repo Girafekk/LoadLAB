@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ const textareaClass =
  * Всё приватно: сервер отдаёт записи только их владельцу.
  */
 export function LessonTools({ lessonId }: { lessonId: number }) {
-  const { status: authStatus, clearSession } = useAuth();
+  const { status: authStatus, clearSession, version } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [note, setNote] = useState("");
@@ -37,10 +37,19 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
   const [question, setQuestion] = useState("");
   const [questionStatus, setQuestionStatus] = useState<"idle" | "saved" | "error">("idle");
   const [savingQuestion, setSavingQuestion] = useState(false);
+  // Текущие значения полей: после ответа сервера проверяем, не изменился ли
+  // текст, пока шёл запрос. Успех относится только к отправленной версии.
+  const noteRef = useRef("");
+  const highlightRef = useRef("");
+  const questionRef = useRef("");
 
   function handleFailure(caught: unknown, setMessage: (value: string | null) => void) {
     if (caught instanceof ApiError && caught.status === 401) {
-      clearSession();
+      clearSession(version);
+      return;
+    }
+    if (caught instanceof ApiError && caught.status === 409) {
+      setMessage(t.sessionChanged);
       return;
     }
     setMessage(t.saveError);
@@ -55,20 +64,21 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
     ])
       .then(([noteData, highlightData]) => {
         setNote(noteData.content);
+        noteRef.current = noteData.content;
         setHighlights(highlightData);
         setLoading(false);
       })
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         if (caught instanceof ApiError && caught.status === 401) {
-          clearSession();
+          clearSession(version);
         } else {
           setLoadError(true);
           setLoading(false);
         }
       });
     return () => controller.abort();
-  }, [authStatus, lessonId, clearSession]);
+  }, [authStatus, lessonId, clearSession, version]);
 
   if (authStatus !== "authenticated") return null;
 
@@ -92,14 +102,17 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
   }
 
   async function handleSaveNote() {
+    const sent = note;
     setSavingNote(true);
     setNoteStatus("idle");
     try {
-      await saveNote(lessonId, note);
-      setNoteStatus("saved");
+      await saveNote(lessonId, sent);
+      // Пока шёл запрос, текст могли изменить: «Сохранено» относится только
+      // к отправленной версии, новый текст остаётся несохранённым.
+      setNoteStatus(noteRef.current === sent ? "saved" : "idle");
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        clearSession();
+        clearSession(version);
         return;
       }
       setNoteStatus("error");
@@ -116,7 +129,10 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
     try {
       const created = await addHighlight(lessonId, text);
       setHighlights((current) => [created, ...current]);
-      setNewHighlight("");
+      if (highlightRef.current.trim() === text) {
+        setNewHighlight("");
+        highlightRef.current = "";
+      }
     } catch (caught) {
       handleFailure(caught, setHighlightError);
     } finally {
@@ -141,11 +157,18 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
     setQuestionStatus("idle");
     try {
       await createSavedQuestion(text, lessonId);
-      setQuestion("");
+      if (questionRef.current.trim() === text) {
+        setQuestion("");
+        questionRef.current = "";
+      }
       setQuestionStatus("saved");
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
-        clearSession();
+        clearSession(version);
+        return;
+      }
+      if (caught instanceof ApiError && caught.status === 409) {
+        setQuestionStatus("error");
         return;
       }
       setQuestionStatus("error");
@@ -172,6 +195,7 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
           maxLength={20_000}
           onChange={(event) => {
             setNote(event.target.value);
+            noteRef.current = event.target.value;
             setNoteStatus("idle");
           }}
           placeholder={t.notePlaceholder}
@@ -203,7 +227,10 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
             id="highlight-text"
             value={newHighlight}
             maxLength={1_000}
-            onChange={(event) => setNewHighlight(event.target.value)}
+            onChange={(event) => {
+              setNewHighlight(event.target.value);
+              highlightRef.current = event.target.value;
+            }}
             placeholder={t.highlightPlaceholder}
             className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
@@ -217,7 +244,10 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
             onClick={() => {
               // Берём текст, который человек выделил мышью в уроке выше.
               const selected = window.getSelection()?.toString().trim();
-              if (selected) setNewHighlight(selected);
+              if (selected) {
+                setNewHighlight(selected);
+                highlightRef.current = selected;
+              }
             }}
           >
             {t.useSelection}
@@ -265,6 +295,7 @@ export function LessonTools({ lessonId }: { lessonId: number }) {
           maxLength={2_000}
           onChange={(event) => {
             setQuestion(event.target.value);
+            questionRef.current = event.target.value;
             setQuestionStatus("idle");
           }}
           placeholder={t.questionPlaceholder}

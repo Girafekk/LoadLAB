@@ -52,6 +52,17 @@ export type Credentials = {
   password: string;
 };
 
+/**
+ * Ученик, от имени которого экран собирается действовать. Уходит заголовком
+ * `X-LoadLab-User`: если в соседней вкладке уже вошли другим учеником, сервер
+ * отклонит запись со старым экраном (409), а не сохранит черновик в чужой аккаунт.
+ */
+let expectedUserId: number | null = null;
+
+export function setApiUser(userId: number | null): void {
+  expectedUserId = userId;
+}
+
 type ErrorDetail = { field: string; message: string };
 
 /** Ошибка API в едином формате backend. `status: 0` — сервер недоступен. */
@@ -78,12 +89,15 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
 
   let response: Response;
   try {
+    const headers: Record<string, string> = {};
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (expectedUserId !== null) headers["X-LoadLab-User"] = String(expectedUserId);
     response = await fetch(`${API_BASE_URL}${API_PREFIX}${path}`, {
       method,
       signal,
       cache: "no-store",
       credentials: "include",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: body === undefined && expectedUserId === null ? undefined : headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
@@ -94,6 +108,11 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const error = payload?.error;
+    if (response.status === 409 && typeof window !== "undefined") {
+      // Экран устарел: в другой вкладке сменился ученик. Провайдер авторизации
+      // перечитает /auth/me, а личные компоненты пересоздадутся по новому ключу.
+      window.dispatchEvent(new Event("loadlab:session-changed"));
+    }
     throw new ApiError(
       response.status,
       error?.code ?? "http_error",
@@ -262,6 +281,17 @@ export function createCheatsheet(title: string, content: string): Promise<Cheats
 
 export function deleteCheatsheet(cheatsheetId: number): Promise<void> {
   return apiRequest<void>(`/cheatsheets/${cheatsheetId}`, { method: "DELETE" });
+}
+
+export function updateCheatsheet(
+  cheatsheetId: number,
+  title: string,
+  content: string,
+): Promise<Cheatsheet> {
+  return apiRequest<Cheatsheet>(`/cheatsheets/${cheatsheetId}`, {
+    method: "PATCH",
+    body: { title, content },
+  });
 }
 
 export function fetchWeakTopics(signal?: AbortSignal): Promise<WeakTopic[]> {

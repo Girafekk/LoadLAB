@@ -39,7 +39,7 @@ function isAnswered(question: QuizQuestion, answers: Answers): boolean {
  * браузер их не знает, после — показывает разбор с объяснениями.
  */
 export function LessonQuiz({ lessonId }: { lessonId: number }) {
-  const { status: authStatus, clearSession } = useAuth();
+  const { status: authStatus, clearSession, version } = useAuth();
   const [status, setStatus] = useState<Status>("loading");
   const [data, setData] = useState<QuizWithHistory | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
@@ -48,6 +48,9 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const resultRef = useRef<HTMLDivElement>(null);
+  // Номер запроса истории: ответ на старый запрос не должен перезаписать
+  // данные после новой попытки.
+  const historyRequestId = useRef(0);
 
   // После отправки переводим фокус на результат: иначе он остаётся на кнопке,
   // которая исчезла из разметки.
@@ -58,15 +61,17 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
   useEffect(() => {
     if (authStatus !== "authenticated") return;
     const controller = new AbortController();
+    const historyId = ++historyRequestId.current;
     fetchLessonQuiz(lessonId, controller.signal)
       .then((quiz) => {
+        if (historyRequestId.current !== historyId) return;
         setData(quiz);
         setStatus("ready");
       })
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         if (caught instanceof ApiError && caught.status === 401) {
-          clearSession();
+          clearSession(version);
         } else if (caught instanceof ApiError && caught.status === 404) {
           setStatus("missing");
         } else {
@@ -74,7 +79,7 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
         }
       });
     return () => controller.abort();
-  }, [authStatus, lessonId, reloadToken, clearSession]);
+  }, [authStatus, lessonId, reloadToken, clearSession, version]);
 
   if (authStatus !== "authenticated") return null;
 
@@ -140,18 +145,26 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
       setResult(attempt);
       // История и лучший результат обновляются отдельно, чтобы сбой этого
       // запроса не скрывал уже полученный разбор.
+      const historyId = ++historyRequestId.current;
       fetchLessonQuiz(lessonId)
-        .then(setData)
+        .then((history) => {
+          if (historyRequestId.current === historyId) setData(history);
+        })
         .catch(() => undefined);
     } catch (caught: unknown) {
       // Истёкшая сессия: сбрасываем вход, чтобы страница входа не вернула
-      // ученика обратно к недоступной отправке.
+      // ученика обратно к недоступной отправке. Только для той версии сессии,
+      // с которой началась отправка: запоздалый 401 не трогает новый вход.
       if (caught instanceof ApiError && caught.status === 401) {
-        clearSession();
+        clearSession(version);
         return;
       }
       if (caught instanceof ApiError && caught.status === 404) {
         setStatus("missing");
+        return;
+      }
+      if (caught instanceof ApiError && caught.status === 409) {
+        setError(t.sessionChanged);
         return;
       }
       setError(t.submitError);
@@ -192,6 +205,25 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
             t.noAttempts
           )}
         </p>
+        {data.attempts.length > 0 ? (
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer text-muted-foreground">
+              {t.historyTitle}
+            </summary>
+            <ul className="mt-2 space-y-1 text-muted-foreground">
+              {data.attempts.map((attempt) => (
+                <li key={attempt.id}>
+                  {t.attemptLine(
+                    new Date(attempt.created_at).toLocaleString("ru-RU"),
+                    attempt.percent,
+                    attempt.score,
+                    attempt.max_score,
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </div>
 
       {result ? (
@@ -234,13 +266,18 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
                 ) : null}
               </div>
 
-              <fieldset className="mt-3" disabled={result !== null}>
+              <fieldset className="mt-3" disabled={result !== null || submitting}>
                 <legend className="text-base leading-relaxed font-medium">
                   {question.text}
                 </legend>
                 <div className="mt-3 space-y-2">
                   {question.options.map((option) => {
-                    const selected = chosen.includes(option.id);
+                    // После отправки «Ваш выбор» берём из сохранённой попытки,
+                    // а не из редактируемого состояния: иначе разбор разойдётся
+                    // с тем, что оценил сервер.
+                    const selected = review
+                      ? review.selected_option_ids.includes(option.id)
+                      : chosen.includes(option.id);
                     const correct = review?.correct_option_ids.includes(option.id) ?? false;
                     const wrongSelected = Boolean(review) && selected && !correct;
                     return (

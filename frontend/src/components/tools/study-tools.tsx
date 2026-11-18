@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
   fetchWeakTopics,
   setReviewItemDone,
   setSavedQuestionResolved,
+  updateCheatsheet,
 } from "@/lib/api";
 import type { Cheatsheet, ReviewItem, SavedQuestion, WeakTopic } from "@/lib/tools-types";
 import { cn } from "@/lib/utils";
@@ -29,14 +30,15 @@ type Status = "loading" | "ready" | "error";
 
 /** Личные материалы: слабые темы, повторение, вопросы и шпаргалки. */
 export function StudyTools() {
-  const { user } = useAuth();
-  // Ключ по ученику: при смене пользователя списки и черновики начинаются заново.
-  return <StudyToolsContent key={`tools-${user?.id ?? "guest"}`} />;
+  const { user, version } = useAuth();
+  // Ключ по ученику и версии сессии: при смене пользователя списки и черновики
+  // начинаются заново, даже если ID остался тем же после повторного входа.
+  return <StudyToolsContent key={`tools-${user?.id ?? "guest"}-${version}`} />;
 }
 
 function StudyToolsContent() {
   const router = useRouter();
-  const { status: authStatus, clearSession } = useAuth();
+  const { status: authStatus, clearSession, version } = useAuth();
   const [status, setStatus] = useState<Status>("loading");
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -51,12 +53,26 @@ function StudyToolsContent() {
   const [formError, setFormError] = useState<string | null>(null);
   const [addingReview, setAddingReview] = useState(false);
   const [addingCheatsheet, setAddingCheatsheet] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Текущие черновики: успех применяется только к отправленной версии текста.
+  const reviewRef = useRef("");
+  const cheatTitleRef = useRef("");
+  const cheatContentRef = useRef("");
 
   function handleFailure(caught: unknown) {
     // Истёкшая сессия: сбрасываем общий вход, чтобы не предлагать «повторить»
-    // действие, которое сервер всё равно отклонит.
+    // действие, которое сервер всё равно отклонит. Только для той версии
+    // сессии, с которой началось действие.
     if (caught instanceof ApiError && caught.status === 401) {
-      clearSession();
+      clearSession(version);
+      return;
+    }
+    if (caught instanceof ApiError && caught.status === 409) {
+      setFormError(t.sessionChanged);
       return;
     }
     setFormError(t.saveError);
@@ -87,13 +103,13 @@ function StudyToolsContent() {
       .catch((caught: unknown) => {
         if (controller.signal.aborted) return;
         if (caught instanceof ApiError && caught.status === 401) {
-          clearSession();
+          clearSession(version);
         } else {
           setStatus("error");
         }
       });
     return () => controller.abort();
-  }, [authStatus, reloadToken, clearSession]);
+  }, [authStatus, reloadToken, clearSession, version]);
 
   if (authStatus === "anonymous") {
     return <p className="text-sm text-muted-foreground">{t.loginRequired}</p>;
@@ -128,7 +144,10 @@ function StudyToolsContent() {
     try {
       const created = await createReviewItem(title, null);
       setReview((current) => [created, ...current]);
-      setNewReview("");
+      if (reviewRef.current.trim() === title) {
+        setNewReview("");
+        reviewRef.current = "";
+      }
       setFormError(null);
     } catch (caught) {
       handleFailure(caught);
@@ -166,13 +185,46 @@ function StudyToolsContent() {
     try {
       const created = await createCheatsheet(title, content);
       setCheatsheets((current) => [created, ...current]);
-      setCheatTitle("");
-      setCheatContent("");
+      if (
+        cheatTitleRef.current.trim() === title &&
+        cheatContentRef.current.trim() === content
+      ) {
+        setCheatTitle("");
+        setCheatContent("");
+        cheatTitleRef.current = "";
+        cheatContentRef.current = "";
+      }
       setFormError(null);
     } catch (caught) {
       handleFailure(caught);
     } finally {
       setAddingCheatsheet(false);
+    }
+  }
+
+  function startEdit(item: Cheatsheet) {
+    setEditingId(item.id);
+    setEditTitle(item.title);
+    setEditContent(item.content);
+    setFormError(null);
+  }
+
+  async function saveCheatsheet(item: Cheatsheet) {
+    const title = editTitle.trim();
+    const content = editContent.trim();
+    if (!title || !content || savingEdit) return;
+    setSavingEdit(true);
+    setFormError(null);
+    try {
+      const updated = await updateCheatsheet(item.id, title, content);
+      setCheatsheets((current) =>
+        current.map((entry) => (entry.id === item.id ? updated : entry)),
+      );
+      setEditingId(null);
+    } catch (caught) {
+      handleFailure(caught);
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -258,7 +310,10 @@ function StudyToolsContent() {
             id="review-title"
             value={newReview}
             maxLength={300}
-            onChange={(event) => setNewReview(event.target.value)}
+            onChange={(event) => {
+              setNewReview(event.target.value);
+              reviewRef.current = event.target.value;
+            }}
             placeholder={t.reviewPlaceholder}
             className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
@@ -349,7 +404,10 @@ function StudyToolsContent() {
             id="cheat-title"
             value={cheatTitle}
             maxLength={200}
-            onChange={(event) => setCheatTitle(event.target.value)}
+            onChange={(event) => {
+              setCheatTitle(event.target.value);
+              cheatTitleRef.current = event.target.value;
+            }}
             placeholder={t.cheatsheetTitlePlaceholder}
             className="h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
@@ -360,7 +418,10 @@ function StudyToolsContent() {
             id="cheat-content"
             value={cheatContent}
             maxLength={20_000}
-            onChange={(event) => setCheatContent(event.target.value)}
+            onChange={(event) => {
+              setCheatContent(event.target.value);
+              cheatContentRef.current = event.target.value;
+            }}
             placeholder={t.cheatsheetContentPlaceholder}
             className="min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
@@ -379,21 +440,72 @@ function StudyToolsContent() {
           <ul className="mt-4 space-y-3">
             {cheatsheets.map((item) => (
               <li key={item.id} className="rounded-lg border p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="text-sm font-semibold break-words">{item.title}</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    aria-label={`${t.delete}: ${item.title}`}
-                    onClick={() => removeCheatsheet(item)}
-                  >
-                    {t.delete}
-                  </Button>
-                </div>
-                <p className="mt-1 text-sm leading-relaxed break-words whitespace-pre-line">
-                  {item.content}
-                </p>
+                {editingId === item.id ? (
+                  <div className="space-y-2">
+                    <label htmlFor={`edit-title-${item.id}`} className="sr-only">
+                      {t.cheatsheetEditTitle}
+                    </label>
+                    <input
+                      id={`edit-title-${item.id}`}
+                      value={editTitle}
+                      maxLength={200}
+                      onChange={(event) => setEditTitle(event.target.value)}
+                      className="h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    />
+                    <label htmlFor={`edit-content-${item.id}`} className="sr-only">
+                      {t.cheatsheetEditContent}
+                    </label>
+                    <textarea
+                      id={`edit-content-${item.id}`}
+                      value={editContent}
+                      maxLength={20_000}
+                      onChange={(event) => setEditContent(event.target.value)}
+                      className="min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => saveCheatsheet(item)}
+                        disabled={savingEdit}
+                      >
+                        {t.saveChanges}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingId(null);
+                          setFormError(null);
+                        }}
+                      >
+                        {t.cancel}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h3 className="text-sm font-semibold break-words">{item.title}</h3>
+                      <div className="flex flex-wrap gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(item)}>
+                          {t.edit}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          aria-label={`${t.delete}: ${item.title}`}
+                          onClick={() => removeCheatsheet(item)}
+                        >
+                          {t.delete}
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-sm leading-relaxed break-words whitespace-pre-line">
+                      {item.content}
+                    </p>
+                  </>
+                )}
               </li>
             ))}
           </ul>

@@ -22,12 +22,12 @@ class _TopicStats:
 
     @property
     def best_percent(self) -> int:
-        return round(100 * self.best_score / self.best_max) if self.best_max else 0
+        # Округление вниз согласовано с quiz_service: 79,9 % — это 79 %.
+        return (100 * self.best_score) // self.best_max if self.best_max else 0
 
     @property
     def is_weak(self) -> bool:
-        # Сравнение без округления: 79,5 % не должно стать 80 % и покинуть список.
-        return self.best_score * 100 < WEAK_TOPIC_THRESHOLD * self.best_max
+        return self.best_percent < WEAK_TOPIC_THRESHOLD
 
 
 def weak_topics(db: Session, user_id: int) -> list[WeakTopicRead]:

@@ -292,6 +292,27 @@ def test_weak_topics_are_empty_without_attempts(api_client, db_session):
     assert api_client.get("/api/v1/users/me/weak-topics").json() == []
 
 
+def test_control_characters_are_rejected(api_client, db_session):
+    lesson_id = _prepare(db_session)
+    _login(api_client)
+
+    assert (
+        api_client.put(
+            f"/api/v1/lessons/{lesson_id}/note", json={"content": "текст\u0000"}
+        ).status_code
+        == 422
+    )
+    assert (
+        api_client.post(
+            f"/api/v1/lessons/{lesson_id}/highlights", json={"text": "текст\u0001"}
+        ).status_code
+        == 422
+    )
+    assert (
+        api_client.post("/api/v1/saved-questions", json={"text": "вопрос\u0000"}).status_code == 422
+    )
+
+
 def test_tools_require_login(api_client, db_session):
     lesson_id = _prepare(db_session)
     api_client.cookies.clear()

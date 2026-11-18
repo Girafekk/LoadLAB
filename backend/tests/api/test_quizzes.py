@@ -281,6 +281,21 @@ def test_attempt_history_requires_quiz(api_client, db_session):
     assert api_client.get(f"/api/v1/lessons/{lesson_id}/quiz/attempts").status_code == 404
 
 
+def test_demo_quiz_does_not_put_correct_answers_first():
+    """Правильные варианты не должны стоять только в начале: иначе квиз
+    проверяет привычку выбирать первые пункты, а не понимание."""
+    correct_positions = []
+    for question in DEMO_QUIZ_QUESTIONS:
+        options = question["options"]
+        correct = [index for index, (_, is_correct) in enumerate(options) if is_correct]
+        assert correct, "у вопроса должен быть верный вариант"
+        assert correct != list(range(len(correct))), "верные варианты не в начале"
+        correct_positions.append(tuple(correct))
+
+    first_positions = {positions[0] for positions in correct_positions}
+    assert len(first_positions) > 1
+
+
 def test_quiz_seed_is_idempotent(db_session):
     _prepare(db_session)
 

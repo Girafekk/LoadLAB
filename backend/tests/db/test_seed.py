@@ -7,7 +7,9 @@ from app.db.demo_quiz import DEMO_QUIZ_QUESTIONS, publish_demo_quiz
 from app.db.seed import (
     clear_demo_content,
     demo_publication_state,
+    demo_quiz_publication_state,
     restore_demo_publication,
+    restore_quiz_publication,
     seed_curriculum,
 )
 from app.models import Course, Lesson, LessonBlock, Module, Quiz
@@ -120,17 +122,27 @@ def test_refresh_demo_recreates_content_and_keeps_publication(db_session):
 
     state = demo_publication_state(db_session)
     assert state == (True, False)
+    quiz_state = demo_quiz_publication_state(db_session)
+    assert quiz_state is True
+    quiz = db_session.scalar(select(Quiz))
+    quiz.is_published = False
+    db_session.flush()
+    quiz_state = demo_quiz_publication_state(db_session)
+    assert quiz_state is False
 
     clear_demo_content(db_session)
     assert publish_demo_lesson(db_session) == len(DEMO_LESSON_BLOCKS)
     assert publish_demo_quiz(db_session) == len(DEMO_QUIZ_QUESTIONS)
     restore_demo_publication(db_session, state)
+    restore_quiz_publication(db_session, quiz_state)
     db_session.flush()
     db_session.expire_all()
 
     course = db_session.scalar(select(Course).where(Course.slug == "load-testing"))
     lesson = course.modules[0].lessons[0]
-    # Контент пересобран, но скрытый урок не опубликован заново.
+    # Контент пересобран, но скрытые урок и квиз не опубликованы заново.
     assert lesson.is_published is False
     assert len(lesson.blocks) == len(DEMO_LESSON_BLOCKS)
-    assert db_session.scalar(select(func.count()).select_from(Quiz)) == 1
+    quiz = db_session.scalar(select(Quiz))
+    assert quiz is not None
+    assert quiz.is_published is False

@@ -27,6 +27,11 @@ export const quizContent = {
   retry: "Пройти ещё раз",
   attempts: (count: number) => `Попыток: ${count}`,
   best: (percent: number) => `Лучший результат: ${percent} %`,
+  historyTitle: "История попыток",
+  attemptLine: (date: string, percent: number, score: number, max: number) =>
+    `${date} — ${percent} % (${score} из ${max})`,
+  sessionChanged:
+    "Сессия изменилась: в другой вкладке выполнен вход. Обновите страницу и отправьте квиз снова.",
   noAttempts: "Вы ещё не проходили этот квиз.",
   loadError: "Не удалось загрузить квиз.",
   submitError: "Не удалось отправить ответы. Попробуйте ещё раз.",

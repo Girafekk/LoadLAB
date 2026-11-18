@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.curriculum_data import COURSE, CourseData
 from app.db.demo_lesson import publish_demo_lesson
 from app.db.demo_quiz import publish_demo_quiz
@@ -137,6 +138,41 @@ def restore_demo_publication(session: Session, state: tuple[bool, bool]) -> None
         lesson.is_published = state[1]
 
 
+def demo_quiz_publication_state(session: Session) -> bool | None:
+    """Был ли демо-квиз опубликован до пересоздания (None — квиза не было)."""
+    course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
+    if course is None:
+        return None
+    lesson = session.scalar(
+        select(Lesson)
+        .join(Module)
+        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
+    )
+    if lesson is None:
+        return None
+    quiz = session.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id))
+    return None if quiz is None else quiz.is_published
+
+
+def restore_quiz_publication(session: Session, was_published: bool | None) -> None:
+    """Возвращает прежний флаг публикации демо-квиза после пересоздания."""
+    if was_published is None:
+        return
+    course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
+    if course is None:
+        return
+    lesson = session.scalar(
+        select(Lesson)
+        .join(Module)
+        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
+    )
+    if lesson is None:
+        return
+    quiz = session.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id))
+    if quiz is not None:
+        quiz.is_published = was_published
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Загрузка структуры курса и демонстрационных материалов."
@@ -148,15 +184,21 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if args.refresh_demo and get_settings().is_production:
+        parser.error("--refresh-demo удаляет попытки и запрещён в production")
+
     with Session(get_engine()) as session:
         result = seed_curriculum(session)
         publication_state = demo_publication_state(session) if args.refresh_demo else None
+        quiz_publication_state = demo_quiz_publication_state(session) if args.refresh_demo else None
         if args.refresh_demo:
             clear_demo_content(session)
         blocks_created = publish_demo_lesson(session)
         quiz_questions_created = publish_demo_quiz(session)
         if publication_state is not None:
             restore_demo_publication(session, publication_state)
+        if quiz_publication_state is not None:
+            restore_quiz_publication(session, quiz_publication_state)
         session.commit()
 
         course_id = session.scalar(select(Course.id).where(Course.slug == COURSE.slug))

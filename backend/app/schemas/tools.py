@@ -1,5 +1,6 @@
 """Формы данных инструментов ученика: конспект, выделения, вопросы, повторение, шпаргалки."""
 
+import re
 from datetime import datetime
 from typing import Annotated
 
@@ -13,14 +14,32 @@ CHEATSHEET_TITLE_MAX_LENGTH = 200
 CHEATSHEET_MAX_LENGTH = 20_000
 
 
+# Управляющие символы PostgreSQL не принимает в тексте: без проверки запись
+# упала бы с 500 вместо понятной ошибки 422.
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _reject_control_chars(value: str) -> None:
+    if _CONTROL_CHARS.search(value):
+        raise ValueError("Текст содержит недопустимые управляющие символы")
+
+
 def _not_blank(value: str) -> str:
     cleaned = value.strip()
     if not cleaned:
         raise ValueError("Текст не может быть пустым")
+    _reject_control_chars(cleaned)
     return cleaned
 
 
+def _clean_note(value: str) -> str:
+    """Конспект может быть пустым, но управляющие символы запрещены."""
+    _reject_control_chars(value)
+    return value
+
+
 CleanText = Annotated[str, AfterValidator(_not_blank)]
+NoteContent = Annotated[str, AfterValidator(_clean_note)]
 
 
 def _clean_optional(value: str | None) -> str | None:
@@ -39,7 +58,7 @@ class LessonNoteRead(BaseModel):
 
 
 class LessonNoteUpdate(BaseModel):
-    content: str = Field(max_length=NOTE_MAX_LENGTH)
+    content: NoteContent = Field(max_length=NOTE_MAX_LENGTH)
 
 
 class LessonHighlightCreate(BaseModel):

@@ -391,6 +391,23 @@ def test_two_simultaneous_marks_create_one_row(test_engine):
             cleanup.commit()
 
 
+def test_stale_client_session_is_rejected(api_client, db_session):
+    """Старый экран не должен писать в аккаунт, в который уже вошли в другой вкладке."""
+    _prepare_course(db_session)
+    user_id = _login(api_client)
+    lesson_id = _demo_lesson_id(db_session)
+
+    stale = {"X-LoadLab-User": str(user_id + 1)}
+    response = api_client.post(f"/api/v1/lessons/{lesson_id}/complete", headers=stale)
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "conflict"
+
+    current = {"X-LoadLab-User": str(user_id)}
+    assert (
+        api_client.post(f"/api/v1/lessons/{lesson_id}/complete", headers=current).status_code == 204
+    )
+
+
 def test_progress_is_removed_with_the_user(db_session):
     """При удалении ученика удаляются только его отметки, чужие остаются."""
     _prepare_course(db_session)

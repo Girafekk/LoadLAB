@@ -33,12 +33,29 @@ def get_optional_user(
     return auth_service.get_user_by_session_token(db, token) if token else None
 
 
-def get_current_user(user: User | None = Depends(get_optional_user)) -> User:
-    """Текущий пользователь. Без действующей сессии — ошибка 401."""
+def get_current_user(request: Request, user: User | None = Depends(get_optional_user)) -> User:
+    """Текущий пользователь. Без действующей сессии — ошибка 401.
+
+    Клиент присылает заголовок `X-LoadLab-User` с тем учеником, от имени
+    которого он собирался действовать. Если cookie уже принадлежит другому
+    ученику (вход в соседней вкладке), запрос отклоняется с 409: старый экран
+    не должен сохранить черновик в чужую учётную запись.
+    """
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Требуется вход в систему"
         )
+
+    expected = request.headers.get("x-loadlab-user")
+    if expected is not None:
+        try:
+            expected_id = int(expected)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Сессия изменилась"
+            ) from None
+        if expected_id != user.id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Сессия изменилась")
     return user
 
 
