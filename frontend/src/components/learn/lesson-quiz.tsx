@@ -48,6 +48,7 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const resultRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   // Номер запроса истории: ответ на старый запрос не должен перезаписать
   // данные после новой попытки.
   const historyRequestId = useRef(0);
@@ -177,6 +178,9 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
     setAnswers({});
     setResult(null);
     setError(null);
+    // После исчезновения кнопки «Пройти ещё раз» возвращаем фокус к заголовку
+    // квиза, а не теряем его.
+    requestAnimationFrame(() => headingRef.current?.focus());
   }
 
   const resultByQuestion = new Map(
@@ -186,7 +190,7 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
   return (
     <section aria-labelledby="quiz-heading" className="mt-12">
       <div className="rounded-xl border bg-card p-5 sm:p-6">
-        <h2 id="quiz-heading" className="text-xl font-semibold">
+        <h2 id="quiz-heading" ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-none">
           {quiz.title || t.title}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
