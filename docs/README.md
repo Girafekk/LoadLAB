@@ -15,5 +15,6 @@
 | [BROWSER_CHECKLIST.md](BROWSER_CHECKLIST.md) | Короткий чек-лист ручной проверки интерфейса |
 | [MANUAL_BROWSER_RUN.md](MANUAL_BROWSER_RUN.md) | Подробный ручной прогон в браузере для владельца |
 | [API_SQL_RUN_REPORT.md](API_SQL_RUN_REPORT.md) | Отчёт живой проверки API и PostgreSQL |
+| [REVIEW_BRIEF_STAGES_7-9.md](REVIEW_BRIEF_STAGES_7-9.md) | Задание на ревью этапов 7–9 |
 
 Сюда же в будущем добавляются описания принятых решений, схемы и инструкции по развёртыванию.

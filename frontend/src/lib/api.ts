@@ -16,6 +16,18 @@ import type {
 } from "@/lib/learn-types";
 
 import type {
+  BlockInput,
+  CourseAdmin,
+  CourseTree,
+  LessonAdmin,
+  LessonBriefAdmin,
+  ModuleAdmin,
+  QuizAdmin,
+  QuizPayload,
+  StudentProgress,
+  StudentProgressDetail,
+} from "@/lib/admin-types";
+import type {
   Cheatsheet,
   LessonHighlight,
   LessonNote,
@@ -296,4 +308,131 @@ export function updateCheatsheet(
 
 export function fetchWeakTopics(signal?: AbortSignal): Promise<WeakTopic[]> {
   return apiRequest<WeakTopic[]>("/users/me/weak-topics", { signal });
+}
+
+// --- Административная панель -----------------------------------------------------
+
+export function fetchAdminCourses(signal?: AbortSignal): Promise<CourseAdmin[]> {
+  return apiRequest<CourseAdmin[]>("/admin/courses", { signal });
+}
+
+export function createAdminCourse(body: {
+  slug: string;
+  title: string;
+  description: string | null;
+}): Promise<CourseAdmin> {
+  return apiRequest<CourseAdmin>("/admin/courses", { method: "POST", body });
+}
+
+export function fetchAdminCourse(courseId: number, signal?: AbortSignal): Promise<CourseTree> {
+  return apiRequest<CourseTree>(`/admin/courses/${courseId}`, { signal });
+}
+
+export function updateAdminCourse(
+  courseId: number,
+  body: { title?: string; description?: string | null; is_published?: boolean },
+): Promise<CourseAdmin> {
+  return apiRequest<CourseAdmin>(`/admin/courses/${courseId}`, { method: "PATCH", body });
+}
+
+export function deleteAdminCourse(courseId: number): Promise<void> {
+  return apiRequest<void>(`/admin/courses/${courseId}`, { method: "DELETE" });
+}
+
+export function createAdminModule(
+  courseId: number,
+  body: { title: string; summary: string | null },
+): Promise<ModuleAdmin> {
+  return apiRequest<ModuleAdmin>(`/admin/courses/${courseId}/modules`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function updateAdminModule(
+  moduleId: number,
+  body: { title?: string; summary?: string | null; position?: number },
+): Promise<ModuleAdmin> {
+  return apiRequest<ModuleAdmin>(`/admin/modules/${moduleId}`, { method: "PATCH", body });
+}
+
+export function deleteAdminModule(moduleId: number): Promise<void> {
+  return apiRequest<void>(`/admin/modules/${moduleId}`, { method: "DELETE" });
+}
+
+export function createAdminLesson(
+  moduleId: number,
+  body: { title: string; summary: string | null; estimated_minutes: number },
+): Promise<LessonBriefAdmin> {
+  return apiRequest<LessonBriefAdmin>(`/admin/modules/${moduleId}/lessons`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function fetchAdminLesson(lessonId: number, signal?: AbortSignal): Promise<LessonAdmin> {
+  return apiRequest<LessonAdmin>(`/admin/lessons/${lessonId}`, { signal });
+}
+
+export function updateAdminLesson(
+  lessonId: number,
+  body: {
+    title?: string;
+    summary?: string | null;
+    estimated_minutes?: number;
+    position?: number;
+    is_published?: boolean;
+  },
+): Promise<LessonAdmin> {
+  return apiRequest<LessonAdmin>(`/admin/lessons/${lessonId}`, { method: "PATCH", body });
+}
+
+export function deleteAdminLesson(lessonId: number): Promise<void> {
+  return apiRequest<void>(`/admin/lessons/${lessonId}`, { method: "DELETE" });
+}
+
+export function moveAdminLesson(
+  lessonId: number,
+  direction: "up" | "down",
+): Promise<LessonAdmin> {
+  return apiRequest<LessonAdmin>(`/admin/lessons/${lessonId}/move`, {
+    method: "POST",
+    body: { direction },
+  });
+}
+
+export function replaceAdminBlocks(
+  lessonId: number,
+  blocks: BlockInput[],
+): Promise<LessonAdmin> {
+  return apiRequest<LessonAdmin>(`/admin/lessons/${lessonId}/blocks`, {
+    method: "PUT",
+    body: { blocks },
+  });
+}
+
+export function fetchAdminQuiz(
+  lessonId: number,
+  signal?: AbortSignal,
+): Promise<QuizAdmin | null> {
+  return apiRequest<QuizAdmin | null>(`/admin/lessons/${lessonId}/quiz`, { signal });
+}
+
+export function replaceAdminQuiz(lessonId: number, body: QuizPayload): Promise<QuizAdmin> {
+  return apiRequest<QuizAdmin>(`/admin/lessons/${lessonId}/quiz`, { method: "PUT", body });
+}
+
+export function deleteAdminQuiz(lessonId: number): Promise<void> {
+  return apiRequest<void>(`/admin/lessons/${lessonId}/quiz`, { method: "DELETE" });
+}
+
+export function fetchAdminStudents(signal?: AbortSignal): Promise<StudentProgress[]> {
+  return apiRequest<StudentProgress[]>("/admin/students", { signal });
+}
+
+export function fetchAdminStudent(
+  userId: number,
+  signal?: AbortSignal,
+): Promise<StudentProgressDetail> {
+  return apiRequest<StudentProgressDetail>(`/admin/students/${userId}`, { signal });
 }

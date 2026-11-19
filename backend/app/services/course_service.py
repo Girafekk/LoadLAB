@@ -33,7 +33,7 @@ def get_course_overview(db: Session, user_id: int | None) -> CourseOverview | No
         progress = LessonProgressState(
             completed_lessons=len(completed),
             total_lessons=len(ids),
-            percent=round(100 * len(completed) / len(ids)) if ids else 0,
+            percent=(100 * len(completed)) // len(ids) if ids else 0,
             next_lesson_id=next((item for item in ids if item not in completed), None),
             last_completed_lesson_id=ordered[0] if ordered else None,
         )

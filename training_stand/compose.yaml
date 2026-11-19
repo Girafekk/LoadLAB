@@ -1,0 +1,31 @@
+# Учебный стенд «интернет-магазин» для практики нагрузочного тестирования.
+#
+# Запуск из корня проекта:
+#   docker compose -f training_stand/compose.yaml up -d --build
+#
+# Адрес: http://localhost:8082
+# Документация API: http://localhost:8082/api/docs
+
+services:
+  stand:
+    build: .
+    container_name: loadlab-training-stand
+    restart: unless-stopped
+    environment:
+      STAND_DB_PATH: /data/stand.db
+      # Токен для сброса данных. Локальная учебная база, не production.
+      STAND_RESET_TOKEN: ${STAND_RESET_TOKEN:-loadlab-reset}
+    ports:
+      - "127.0.0.1:8082:8000"
+    volumes:
+      - stand_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  stand_data:
+    name: loadlab_training_stand_data
