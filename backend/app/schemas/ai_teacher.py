@@ -38,3 +38,9 @@ class CheatsheetSuggestion(BaseModel):
     title: str
     content: str
     lesson_ids: list[int]
+
+
+class AiStatus(BaseModel):
+    provider: str
+    model: str | None
+    external: bool

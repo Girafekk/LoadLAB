@@ -25,3 +25,9 @@ export type CheatsheetSuggestion = {
   content: string;
   lesson_ids: number[];
 };
+
+export type AiStatus = {
+  provider: string;
+  model: string | null;
+  external: boolean;
+};

@@ -28,8 +28,8 @@ export const trainersContent = {
 } as const;
 
 export const aiContent = {
-  title: "AI Teacher",
-  intro: "Спросите по материалу урока. При повторном вопросе объясню иначе.",
+  title: "ИИ-чат по уроку",
+  intro: "Спросите DeepSeek по материалу урока. При повторном вопросе объясню иначе.",
   placeholder: "Например: почему p95 важнее среднего?",
   ask: "Спросить",
   asking: "Думаю…",
@@ -44,4 +44,6 @@ export const aiContent = {
   cheatsheetTitle: "Шпаргалка",
   providerLocal: "Локальный режим по материалу урока",
   providerLlm: "Ответ AI",
+  providerDeepSeek: "DeepSeek",
+  model: "модель",
 } as const;

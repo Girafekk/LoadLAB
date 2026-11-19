@@ -12,11 +12,17 @@ from app.schemas.ai_teacher import (
     AiHistoryItem,
     AiQuestion,
     AiRecommendation,
+    AiStatus,
     CheatsheetSuggestion,
 )
 from app.services import ai_teacher_service
 
 router = APIRouter(prefix="/ai/teacher", tags=["AI Teacher"])
+
+
+@router.get("/status", response_model=AiStatus, summary="Провайдер AI Teacher")
+def status(user: User = Depends(get_current_user)) -> AiStatus:
+    return ai_teacher_service.provider_status()
 
 
 @router.post("/ask", response_model=AiAnswer, summary="Спросить AI Teacher по уроку")

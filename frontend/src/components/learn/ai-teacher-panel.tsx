@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { aiContent as t } from "@/content/trainers";
-import { ApiError, askAiTeacher, fetchAiHistory } from "@/lib/api";
-import type { AiAnswer, AiHistoryItem } from "@/lib/ai-types";
+import { ApiError, askAiTeacher, fetchAiHistory, fetchAiStatus } from "@/lib/api";
+import type { AiAnswer, AiHistoryItem, AiStatus } from "@/lib/ai-types";
 
 export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<AiAnswer | null>(null);
   const [history, setHistory] = useState<AiHistoryItem[]>([]);
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,6 +20,9 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
     fetchAiHistory(lessonId, controller.signal)
       .then(setHistory)
       .catch(() => setHistory([]));
+    fetchAiStatus(controller.signal)
+      .then(setAiStatus)
+      .catch(() => setAiStatus(null));
     return () => controller.abort();
   }, [lessonId]);
 
@@ -50,6 +54,13 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
         {t.title}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">{t.intro}</p>
+      {aiStatus ? (
+        <p className="mt-2 text-xs font-medium text-brand">
+          {aiStatus.provider === "deepseek"
+            ? `${t.providerDeepSeek}${aiStatus.model ? ` · ${t.model} ${aiStatus.model}` : ""}`
+            : t.providerLocal}
+        </p>
+      ) : null}
 
       <label htmlFor="ai-question" className="mt-4 block text-sm font-medium">
         {t.placeholder}
@@ -75,7 +86,11 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
         <div className="mt-4 rounded-lg border bg-surface p-4" role="status">
           <p className="text-xs font-medium text-muted-foreground">
             {answer.mode === "simpler" ? t.simpler : t.answer} ·{" "}
-            {answer.provider === "llm" ? t.providerLlm : t.providerLocal}
+            {answer.provider === "deepseek"
+              ? t.providerDeepSeek
+              : answer.provider === "llm"
+                ? t.providerLlm
+                : t.providerLocal}
           </p>
           <div className="mt-2 text-sm leading-relaxed whitespace-pre-line">{answer.answer}</div>
         </div>

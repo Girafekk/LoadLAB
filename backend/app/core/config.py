@@ -34,9 +34,13 @@ class Settings(BaseSettings):
     # Имя cookie, в которой браузер хранит токен сессии.
     session_cookie_name: str = "loadlab_session"
 
-    # --- AI Teacher ---
-    # Если base_url и api_key заданы, используется OpenAI-совместимый сервис.
-    # Без них AI Teacher работает в локальном режиме по материалу урока.
+    # --- AI Teacher / DeepSeek ---
+    # DeepSeek — основной провайдер. Ключ задаётся только в .env.
+    deepseek_api_key: str | None = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+
+    # Универсальный OpenAI-совместимый провайдер (резерв, если DeepSeek не задан).
     ai_teacher_base_url: str | None = None
     ai_teacher_api_key: str | None = None
     ai_teacher_model: str = "gpt-4o-mini"

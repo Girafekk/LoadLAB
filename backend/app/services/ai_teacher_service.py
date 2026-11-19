@@ -12,7 +12,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models import AiTeacherMessage, Course, Lesson, LessonBlock, Module, User
-from app.schemas.ai_teacher import AiAnswer, AiHistoryItem, AiRecommendation, CheatsheetSuggestion
+from app.schemas.ai_teacher import (
+    AiAnswer,
+    AiHistoryItem,
+    AiRecommendation,
+    AiStatus,
+    CheatsheetSuggestion,
+)
 from app.services import weak_topics_service
 from app.services.course_service import published_lesson
 
@@ -124,10 +130,39 @@ def _local_answer(lesson: Lesson, question: str, mode: str) -> str:
     )
 
 
-def _external_answer(lesson: Lesson, question: str, mode: str) -> str | None:
+def _provider_config() -> tuple[str, str, str, str] | None:
+    """Возвращает base_url, key, model, имя провайдера. Приоритет — DeepSeek."""
     settings = get_settings()
-    if not settings.ai_teacher_base_url or not settings.ai_teacher_api_key:
+    if settings.deepseek_api_key:
+        return (
+            settings.deepseek_base_url,
+            settings.deepseek_api_key,
+            settings.deepseek_model,
+            "deepseek",
+        )
+    if settings.ai_teacher_base_url and settings.ai_teacher_api_key:
+        return (
+            settings.ai_teacher_base_url,
+            settings.ai_teacher_api_key,
+            settings.ai_teacher_model,
+            "llm",
+        )
+    return None
+
+
+def provider_status() -> AiStatus:
+    config = _provider_config()
+    if config is None:
+        return AiStatus(provider="local", model=None, external=False)
+    _, _, model, provider = config
+    return AiStatus(provider=provider, model=model, external=True)
+
+
+def _external_answer(lesson: Lesson, question: str, mode: str) -> tuple[str, str] | None:
+    config = _provider_config()
+    if config is None:
         return None
+    base_url, api_key, model, provider = config
     system = (
         "Ты AI Teacher платформы LoadLab. Отвечай по-русски, простым языком, "
         "только опираясь на материал урока. Структура ответа: проще, аналогия, "
@@ -138,7 +173,7 @@ def _external_answer(lesson: Lesson, question: str, mode: str) -> str | None:
     if mode == "simpler":
         system += " Ученик спрашивает повторно: объясни иначе, без прежних формулировок."
     payload = {
-        "model": settings.ai_teacher_model,
+        "model": model,
         "messages": [
             {"role": "system", "content": system},
             {
@@ -153,22 +188,22 @@ def _external_answer(lesson: Lesson, question: str, mode: str) -> str | None:
         "max_tokens": 700,
     }
     request = urllib.request.Request(
-        settings.ai_teacher_base_url.rstrip("/") + "/chat/completions",
+        base_url.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode(),
         headers={
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.ai_teacher_api_key}",
+            "Authorization": f"Bearer {api_key}",
         },
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:
             body = json.loads(response.read(200_000).decode())
         content = body.get("choices", [{}])[0].get("message", {}).get("content")
         if not isinstance(content, str):
             return None
-        answer = content.strip()
-        return answer[:10_000] or None
+        answer = content.strip()[:10_000]
+        return (answer, provider) if answer else None
     except (
         urllib.error.URLError,
         KeyError,
@@ -187,8 +222,12 @@ def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
         raise AiTeacherNotFoundError
     mode = "simpler" if _repeated(db, user, lesson_id, question) else "answer"
     external = _external_answer(lesson, question, mode)
-    answer = (external or _local_answer(lesson, question, mode))[:10_000]
-    provider = "llm" if external else "local"
+    if external is not None:
+        answer, provider = external
+    else:
+        answer = _local_answer(lesson, question, mode)
+        provider = "local"
+    answer = answer[:10_000]
     db.add(
         AiTeacherMessage(
             user_id=user.id,

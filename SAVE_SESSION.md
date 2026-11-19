@@ -374,7 +374,10 @@ frontend (lint, typecheck, build) на push и pull request.
 - Миграция `7360280b27c7` (ai_teacher_messages, индексы, каскады).
 - Frontend: панель AI в уроке, блок рекомендаций на `/profile/tools`, ссылка
   «Тренажёры» в навигации.
-- Тестов: backend 184, стенд 10; frontend lint/typecheck/build зелёные.
+- Тестов: backend 186, стенд 10; frontend lint/typecheck/build зелёные.
+- ИИ-чат: основной провайдер DeepSeek (`deepseek-chat`) при заданном
+  `DEEPSEEK_API_KEY`; без ключа — локальный режим. Статус провайдера отдаётся
+  в `GET /ai/teacher/status`, модель и ключ в интерфейс не попадают.
 - SQL-тренажёр работает не на БД приложения, а на изолированной SQLite-копии
   только `courses/modules/lessons`; авторизатор SQLite запрещает другие таблицы,
   PRAGMA/ATTACH и неизвестные функции. Это закрывает обходы через `U&` и

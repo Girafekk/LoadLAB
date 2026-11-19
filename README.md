@@ -95,6 +95,25 @@ docker compose -f training_stand/compose.yaml up -d --build
 `password123`. Подробности, сценарии и сброс данных — в
 [training_stand/README.md](training_stand/README.md).
 
+## ИИ-чат с DeepSeek
+
+ИИ-чат встроен в каждый урок. Без ключа он работает локально по материалу урока.
+Чтобы подключить DeepSeek, добавьте в `.env`:
+
+```bash
+DEEPSEEK_API_KEY=ваш-ключ
+DEEPSEEK_MODEL=deepseek-chat
+```
+
+Затем пересоздайте backend, чтобы он прочитал окружение:
+
+```bash
+docker compose --profile backend up -d --force-recreate backend
+```
+
+Проверка провайдера: `GET /api/v1/ai/teacher/status` покажет `deepseek` и модель.
+Ключ хранится только в `.env` и не передаётся в Git.
+
 ## Учебный стенд: остановка и удаление данных
 
 ```bash
@@ -253,6 +272,7 @@ docker compose exec backend alembic revision --autogenerate -m "краткое_�
 | `GET /users/me/weak-topics` | Слабые темы по квизам |
 | `GET/POST /trainers/*` | Тренажёры HTTP, SQL, Linux и анализа |
 | `POST /ai/teacher/ask` | Вопрос AI Teacher по уроку |
+| `GET /ai/teacher/status` | Провайдер и модель без секретов |
 | `GET /ai/teacher/recommendations`, `/cheatsheet` | Что повторить и шпаргалка |
 
 Пробовать запросы удобнее всего на странице http://localhost:8001/api/v1/docs.

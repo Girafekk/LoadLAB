@@ -1,10 +1,13 @@
 """AI Teacher: ответы, история, рекомендации и шпаргалка."""
 
+from types import SimpleNamespace
+
 from sqlalchemy import select
 
 from app.db.content_loader import seed_content
 from app.db.seed import seed_curriculum
 from app.models import Lesson, Module
+from app.services import ai_teacher_service
 from tests.api.helpers import register
 
 
@@ -24,6 +27,32 @@ def test_ai_requires_login(api_client):
         ).status_code
         == 401
     )
+
+
+def test_ai_status_reports_local_without_key(api_client, db_session):
+    _prepare(api_client, db_session)
+    response = api_client.get("/api/v1/ai/teacher/status")
+    assert response.status_code == 200
+    assert response.json() == {"provider": "local", "model": None, "external": False}
+
+
+def test_provider_prefers_deepseek(monkeypatch):
+    monkeypatch.setattr(
+        ai_teacher_service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            deepseek_api_key="test-key",
+            deepseek_base_url="https://api.deepseek.com",
+            deepseek_model="deepseek-chat",
+            ai_teacher_base_url=None,
+            ai_teacher_api_key=None,
+            ai_teacher_model="fallback",
+        ),
+    )
+    status = ai_teacher_service.provider_status()
+    assert status.provider == "deepseek"
+    assert status.model == "deepseek-chat"
+    assert status.external is True
 
 
 def test_ai_answers_from_lesson_and_stores_history(api_client, db_session):

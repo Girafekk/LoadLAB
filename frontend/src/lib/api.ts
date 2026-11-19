@@ -15,7 +15,13 @@ import type {
   QuizWithHistory,
 } from "@/lib/learn-types";
 
-import type { AiAnswer, AiHistoryItem, AiRecommendation, CheatsheetSuggestion } from "@/lib/ai-types";
+import type {
+  AiAnswer,
+  AiHistoryItem,
+  AiRecommendation,
+  AiStatus,
+  CheatsheetSuggestion,
+} from "@/lib/ai-types";
 import type {
   BlockInput,
   CourseAdmin,
@@ -517,6 +523,10 @@ export function fetchAiHistory(
 ): Promise<AiHistoryItem[]> {
   const query = lessonId === null ? "" : `?lesson_id=${lessonId}`;
   return apiRequest<AiHistoryItem[]>(`/ai/teacher/history${query}`, { signal });
+}
+
+export function fetchAiStatus(signal?: AbortSignal): Promise<AiStatus> {
+  return apiRequest<AiStatus>("/ai/teacher/status", { signal });
 }
 
 export function fetchAiRecommendations(signal?: AbortSignal): Promise<AiRecommendation[]> {
