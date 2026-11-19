@@ -27,12 +27,18 @@ class Lesson(TimestampMixin, Base):
     """Урок — одна небольшая тема внутри модуля."""
 
     __tablename__ = "lessons"
-    __table_args__ = (UniqueConstraint("module_id", "position"),)
+    __table_args__ = (
+        UniqueConstraint("module_id", "position"),
+        UniqueConstraint("module_id", "content_key"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     module_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("modules.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(200))
     summary: Mapped[str | None] = mapped_column(Text)
+    # Неизменяемый ключ связи с учебным контентом: переживает переименование
+    # и перестановку урока.
+    content_key: Mapped[str | None] = mapped_column(String(120))
     # Сколько минут занимает урок вместе с практикой и квизом.
     estimated_minutes: Mapped[int] = mapped_column(Integer, default=90, server_default="90")
     # Порядковый номер внутри модуля, начинается с 1.

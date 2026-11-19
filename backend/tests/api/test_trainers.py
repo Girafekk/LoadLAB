@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select, update
 
 from app.db.seed import seed_curriculum
-from app.models import Course, Lesson
+from app.models import Course, Lesson, Module
 from tests.api.helpers import register
 
 
@@ -165,13 +165,44 @@ def test_sql_trainer_runs_safe_select_and_rejects_writes(api_client, db_session)
         json={
             "exercise_id": "sql-modules",
             "query": (
-                "SELECT count(*) FROM lessons l1, lessons l2, lessons l3, "
-                "lessons l4, lessons l5, lessons l6"
+                "SELECT count(*) FROM modules m1, modules m2, modules m3, "
+                "modules m4, modules m5, modules m6, modules m7, modules m8, "
+                "modules m9, modules m10, modules m11, modules m12"
             ),
         },
     )
     assert heavy.json()["correct"] is False
     assert heavy.json()["rows"] == []
+
+
+def test_sql_sandbox_excludes_drafts(api_client, db_session):
+    _prepare(api_client, db_session)
+    draft_course = Course(slug="draft-secret", title="Секретный черновик", is_published=False)
+    db_session.add(draft_course)
+    db_session.flush()
+    draft_module = Module(course_id=draft_course.id, title="Черновой модуль", position=1)
+    db_session.add(draft_module)
+    db_session.flush()
+    db_session.add(
+        Lesson(
+            module_id=draft_module.id,
+            title="Секретный урок",
+            position=1,
+            is_published=False,
+        )
+    )
+    db_session.flush()
+
+    response = api_client.post(
+        "/api/v1/trainers/sql/run",
+        json={
+            "exercise_id": "sql-published",
+            "query": "SELECT title FROM lessons",
+        },
+    )
+    titles = [row[0] for row in response.json()["rows"]]
+    assert "Секретный урок" not in titles
+    assert all(title != "Секретный черновик" for title in titles)
 
 
 def test_linux_trainer_simulates_commands(api_client, db_session):

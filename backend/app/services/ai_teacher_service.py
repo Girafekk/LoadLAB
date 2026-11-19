@@ -6,6 +6,7 @@ import json
 import re
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -63,7 +64,7 @@ def _normalized(question: str) -> str:
     return re.sub(r"\s+", " ", question.casefold()).strip(" ?!.,")
 
 
-def _repeated(db: Session, user: User, lesson_id: int, question: str) -> bool:
+def _previous_answer(db: Session, user: User, lesson_id: int, question: str) -> str | None:
     previous = db.scalars(
         select(AiTeacherMessage)
         .where(AiTeacherMessage.user_id == user.id, AiTeacherMessage.lesson_id == lesson_id)
@@ -71,7 +72,10 @@ def _repeated(db: Session, user: User, lesson_id: int, question: str) -> bool:
         .limit(20)
     )
     target = _normalized(question)
-    return any(_normalized(item.question) == target for item in previous)
+    for item in previous:
+        if _normalized(item.question) == target:
+            return item.answer
+    return None
 
 
 def _keywords(question: str) -> list[str]:
@@ -99,16 +103,19 @@ def _keywords(question: str) -> list[str]:
     ]
 
 
-def _local_answer(lesson: Lesson, question: str, mode: str) -> str:
+def _local_answer(lesson: Lesson, question: str, mode: str, previous: str | None) -> str:
     context = _lesson_context(lesson)
     paragraphs = [part.strip() for part in context.split("\n\n") if len(part.strip()) > 60]
     keywords = _keywords(question)
+    candidates = paragraphs
+    if mode == "simpler" and previous:
+        candidates = [part for part in paragraphs if part not in previous] or paragraphs
     matched = next(
-        (part for part in paragraphs if any(word in part.casefold() for word in keywords)),
-        paragraphs[1] if mode == "simpler" and len(paragraphs) > 1 else None,
+        (part for part in candidates if any(word in part.casefold() for word in keywords)),
+        candidates[1] if mode == "simpler" and len(candidates) > 1 else None,
     )
     if matched is None:
-        matched = paragraphs[0] if paragraphs else lesson.summary or lesson.title
+        matched = candidates[0] if candidates else lesson.summary or lesson.title
     intro = (
         "Объясню иначе, без тех же слов." if mode == "simpler" else "Разберём по материалу урока."
     )
@@ -158,11 +165,43 @@ def provider_status() -> AiStatus:
     return AiStatus(provider=provider, model=model, external=True)
 
 
-def _external_answer(lesson: Lesson, question: str, mode: str) -> tuple[str, str] | None:
+def _safe_endpoint(base_url: str, provider: str) -> str | None:
+    """Разрешает только HTTPS и доверенный хост, без редиректов и чужих портов."""
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return None
+    if parsed.port not in (None, 443):
+        return None
+    if provider == "deepseek":
+        allowed = {"api.deepseek.com"}
+    else:
+        allowed = {
+            host.strip().lower()
+            for host in get_settings().ai_teacher_allowed_hosts.split(",")
+            if host.strip()
+        }
+    if parsed.hostname.lower() not in allowed:
+        return None
+    return base_url.rstrip("/") + "/chat/completions"
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Запрос с ключом не должен уходить по редиректу на другой адрес."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        return None
+
+
+def _external_answer(
+    lesson: Lesson, question: str, mode: str, previous: str | None
+) -> tuple[str, str] | None:
     config = _provider_config()
     if config is None:
         return None
     base_url, api_key, model, provider = config
+    endpoint = _safe_endpoint(base_url, provider)
+    if endpoint is None:
+        return None
     system = (
         "Ты AI Teacher платформы LoadLab. Отвечай по-русски, простым языком, "
         "только опираясь на материал урока. Структура ответа: проще, аналогия, "
@@ -181,7 +220,12 @@ def _external_answer(lesson: Lesson, question: str, mode: str) -> tuple[str, str
                 "role": "user",
                 "content": (
                     f"Урок: {lesson.title}\n\nМатериал:\n{_lesson_context(lesson)}\n\n"
-                    f"Вопрос ученика: {question}"
+                    + (
+                        f"Предыдущий ответ, который нужно переписать иначе:\n{previous[:2_000]}\n\n"
+                        if mode == "simpler" and previous
+                        else ""
+                    )
+                    + f"Вопрос ученика: {question}"
                 ),
             },
         ],
@@ -189,7 +233,7 @@ def _external_answer(lesson: Lesson, question: str, mode: str) -> tuple[str, str
         "max_tokens": 700,
     }
     request = urllib.request.Request(
-        base_url.rstrip("/") + "/chat/completions",
+        endpoint,
         data=json.dumps(payload).encode(),
         headers={
             "Content-Type": "application/json",
@@ -198,22 +242,16 @@ def _external_answer(lesson: Lesson, question: str, mode: str) -> tuple[str, str
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        opener = urllib.request.build_opener(_NoRedirect())
+        with opener.open(request, timeout=30) as response:
             body = json.loads(response.read(200_000).decode())
         content = body.get("choices", [{}])[0].get("message", {}).get("content")
         if not isinstance(content, str):
             return None
         answer = content.strip()[:10_000]
         return (answer, provider) if answer else None
-    except (
-        urllib.error.URLError,
-        KeyError,
-        IndexError,
-        TypeError,
-        AttributeError,
-        json.JSONDecodeError,
-        TimeoutError,
-    ):
+    except Exception:
+        # Любой сбой провайдера — локальный ответ, без 500 и без утечки ключа.
         return None
 
 
@@ -221,12 +259,13 @@ def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
     lesson = published_lesson(db, lesson_id, include_blocks=True)
     if lesson is None:
         raise AiTeacherNotFoundError
-    mode = "simpler" if _repeated(db, user, lesson_id, question) else "answer"
-    external = _external_answer(lesson, question, mode)
+    previous = _previous_answer(db, user, lesson_id, question)
+    mode = "simpler" if previous else "answer"
+    external = _external_answer(lesson, question, mode, previous)
     if external is not None:
         answer, provider = external
     else:
-        answer = _local_answer(lesson, question, mode)
+        answer = _local_answer(lesson, question, mode, previous)
         provider = "local"
     answer = answer[:10_000]
     db.add(

@@ -169,7 +169,9 @@ def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
     db_session.flush()
     first.position = second_position
     first.is_published = False
+    first.title = "Переименованный урок"
     db_session.flush()
+    first_key = first.content_key
     quiz = db_session.scalar(select(Quiz).where(Quiz.lesson_id == first.id))
     assert quiz is not None
     quiz.is_published = False
@@ -185,7 +187,8 @@ def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
     db_session.expire_all()
     reloaded = db_session.get(Lesson, first.id)
     assert reloaded is not None
-    assert reloaded.title == first_title
+    assert reloaded.title == "Переименованный урок"
+    assert reloaded.content_key == first_key
     assert reloaded.is_published is False
     heading = next(block for block in reloaded.blocks if block.type == "heading")
     assert heading.content["text"] == first_title

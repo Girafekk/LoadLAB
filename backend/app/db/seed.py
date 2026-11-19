@@ -73,7 +73,14 @@ def seed_curriculum(session: Session, data: CourseData = COURSE) -> SeedResult:
         for lesson_position, lesson_title in enumerate(module_data.lessons, start=1):
             if lesson_position in existing_positions:
                 continue
-            session.add(Lesson(module_id=module.id, title=lesson_title, position=lesson_position))
+            session.add(
+                Lesson(
+                    module_id=module.id,
+                    title=lesson_title,
+                    position=lesson_position,
+                    content_key=f"w{module_position}-l{lesson_position}",
+                )
+            )
             lessons_created += 1
 
     session.flush()

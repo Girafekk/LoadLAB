@@ -363,7 +363,7 @@ AI Teacher по умолчанию отвечает локально по мат
 | `sessions` | Сессии входа | `user_id`, `token_hash`, `expires_at`, `created_at` | `token_hash` уникален; столбца `updated_at` нет; индексы по `user_id` и `expires_at` |
 | `courses` | Курсы | `slug`, `title`, `description`, `is_published` | `slug` уникален |
 | `modules` | Модули курса (недели) | `course_id`, `title`, `summary`, `position` | пара (`course_id`, `position`) уникальна |
-| `lessons` | Уроки | `module_id`, `title`, `summary`, `estimated_minutes`, `position`, `is_published` | пара (`module_id`, `position`) уникальна |
+| `lessons` | Уроки | `module_id`, `title`, `summary`, `estimated_minutes`, `position`, `is_published`, `content_key` | пара (`module_id`, `position`) уникальна; (`module_id`, `content_key`) уникальна; ключ не меняется при переименовании |
 | `lesson_blocks` | Части урока | `lesson_id`, `type`, `content` (JSONB), `position` | пара (`lesson_id`, `position`) уникальна; `type` — один из 7 типов |
 | `lesson_progress` | Отметки «урок пройден» | `user_id`, `lesson_id`, `completed_at` | составной первичный ключ (`user_id`, `lesson_id`); индекс по `lesson_id` |
 | `quizzes` | Квизы уроков и модулей | `lesson_id` или `module_id`, `title`, `description`, `is_published` | ровно один родитель; `lesson_id` уникален |

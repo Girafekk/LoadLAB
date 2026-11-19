@@ -36,6 +36,26 @@ def test_ai_status_reports_local_without_key(api_client, db_session):
     assert response.json() == {"provider": "local", "model": None, "external": False}
 
 
+def test_external_failure_falls_back_without_raising(monkeypatch):
+    monkeypatch.setattr(
+        ai_teacher_service,
+        "_provider_config",
+        lambda: ("https://api.deepseek.com", "secret", "deepseek-chat", "deepseek"),
+    )
+
+    class BrokenOpener:
+        def open(self, *_args, **_kwargs):
+            raise ValueError("broken response")
+
+    monkeypatch.setattr(
+        ai_teacher_service.urllib.request,
+        "build_opener",
+        lambda *_args, **_kwargs: BrokenOpener(),
+    )
+    lesson = SimpleNamespace(title="Урок", summary="Кратко", blocks=[])
+    assert ai_teacher_service._external_answer(lesson, "Вопрос", "answer", None) is None
+
+
 def test_provider_prefers_deepseek(monkeypatch):
     monkeypatch.setattr(
         ai_teacher_service,
@@ -47,12 +67,19 @@ def test_provider_prefers_deepseek(monkeypatch):
             ai_teacher_base_url=None,
             ai_teacher_api_key=None,
             ai_teacher_model="fallback",
+            ai_teacher_allowed_hosts="api.openai.com",
         ),
     )
     status = ai_teacher_service.provider_status()
     assert status.provider == "deepseek"
     assert status.model == "deepseek-chat"
     assert status.external is True
+    assert ai_teacher_service._safe_endpoint("http://api.deepseek.com", "deepseek") is None
+    assert ai_teacher_service._safe_endpoint("https://evil.example", "deepseek") is None
+    assert (
+        ai_teacher_service._safe_endpoint("https://api.deepseek.com/v1", "deepseek")
+        == "https://api.deepseek.com/v1/chat/completions"
+    )
 
 
 def test_ai_answers_from_lesson_and_stores_history(api_client, db_session):
@@ -76,6 +103,9 @@ def test_ai_answers_from_lesson_and_stores_history(api_client, db_session):
     )
     assert repeat.json()["mode"] == "simpler"
     assert repeat.json()["answer"] != body["answer"]
+    first_explanation = body["answer"].split("Проще.", 1)[1].split("\n", 1)[0]
+    repeat_explanation = repeat.json()["answer"].split("Проще.", 1)[1].split("\n", 1)[0]
+    assert first_explanation.strip() != repeat_explanation.strip()
 
     history = api_client.get("/api/v1/ai/teacher/history", params={"lesson_id": lesson_id})
     assert history.status_code == 200

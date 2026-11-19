@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     ai_teacher_base_url: str | None = None
     ai_teacher_api_key: str | None = None
     ai_teacher_model: str = "gpt-4o-mini"
+    # Доверенные хосты для резервного провайдера. DeepSeek — фиксированный хост.
+    ai_teacher_allowed_hosts: str = "api.openai.com"
 
     # --- База данных PostgreSQL ---
     postgres_host: str = "localhost"

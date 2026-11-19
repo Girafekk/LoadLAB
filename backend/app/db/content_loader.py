@@ -97,8 +97,19 @@ def seed_content(
             raise RuntimeError(f"Нет контента для модуля {module.position}")
 
         by_title = {lesson.title: lesson for lesson in module.lessons}
-        for data in week:
-            lesson = by_title.get(data["title"])
+        for content_position, data in enumerate(week, start=1):
+            content_key = f"w{module_index + 1}-l{content_position}"
+            lesson = session.scalar(
+                select(Lesson).where(
+                    Lesson.module_id == module.id,
+                    Lesson.content_key == content_key,
+                )
+            )
+            if lesson is None:
+                # Совместимость с уроками, созданными до появления content_key.
+                lesson = by_title.get(data["title"])
+                if lesson is not None and lesson.content_key is None:
+                    lesson.content_key = content_key
             if lesson is None:
                 # Урок переименован или удалён администратором: не подменяем
                 # его чужим материалом и не трогаем.

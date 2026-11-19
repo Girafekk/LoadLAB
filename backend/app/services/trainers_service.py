@@ -272,8 +272,8 @@ def _unsafe_sql(query: str) -> str | None:
     return None
 
 
-def _sqlite_sandbox(db: Session) -> sqlite3.Connection:
-    """Копия только трёх учебных таблиц; никакого доступа к БД приложения."""
+def _sqlite_sandbox(db: Session, deadline: float) -> sqlite3.Connection:
+    """Копия только опубликованных учебных таблиц; без БД приложения."""
     connection = sqlite3.connect(":memory:")
     connection.executescript(
         """
@@ -292,19 +292,26 @@ def _sqlite_sandbox(db: Session) -> sqlite3.Connection:
         );
         """
     )
+    courses = list(db.scalars(select(Course).where(Course.is_published.is_(True))))
+    modules = list(db.scalars(select(Module).join(Course).where(Course.is_published.is_(True))))
+    lessons = list(
+        db.scalars(
+            select(Lesson)
+            .join(Module)
+            .join(Course)
+            .where(Lesson.is_published.is_(True), Course.is_published.is_(True))
+        )
+    )
     connection.executemany(
         "INSERT INTO courses VALUES (?, ?, ?, ?, ?)",
         [
             (item.id, item.slug, item.title, item.description, int(item.is_published))
-            for item in db.scalars(select(Course))
+            for item in courses
         ],
     )
     connection.executemany(
         "INSERT INTO modules VALUES (?, ?, ?, ?, ?)",
-        [
-            (item.id, item.course_id, item.title, item.summary, item.position)
-            for item in db.scalars(select(Module))
-        ],
+        [(item.id, item.course_id, item.title, item.summary, item.position) for item in modules],
     )
     connection.executemany(
         "INSERT INTO lessons VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -318,9 +325,12 @@ def _sqlite_sandbox(db: Session) -> sqlite3.Connection:
                 item.position,
                 int(item.is_published),
             )
-            for item in db.scalars(select(Lesson))
+            for item in lessons
         ],
     )
+    if time.monotonic() > deadline:
+        connection.close()
+        raise TimeoutError
     connection.commit()
     connection.execute("PRAGMA query_only = ON")
 
@@ -372,8 +382,9 @@ def run_sql(db: Session, exercise_id: str, query: str) -> SqlResult:
     unsafe = _unsafe_sql(query)
     if unsafe:
         return SqlResult(columns=[], rows=[], correct=False, feedback=unsafe)
+    deadline = time.monotonic() + 2
     try:
-        connection = _sqlite_sandbox(db)
+        connection = _sqlite_sandbox(db, deadline)
     except Exception:
         return SqlResult(
             columns=[],
@@ -394,6 +405,13 @@ def run_sql(db: Session, exercise_id: str, query: str) -> SqlResult:
         )
     finally:
         connection.close()
+    if sum(len(str(value)) for row in rows for value in row) > 100_000:
+        return SqlResult(
+            columns=[],
+            rows=[],
+            correct=False,
+            feedback="Результат слишком большой для тренажёра.",
+        )
     first = str(rows[0][0]) if rows and rows[0] else ""
     correct = first.strip() == exercise["expected"]
     feedback = (
