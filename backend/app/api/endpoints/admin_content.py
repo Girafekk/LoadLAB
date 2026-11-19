@@ -1,6 +1,6 @@
 """Административное управление программой, уроками, квизами и учениками."""
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
@@ -226,11 +226,19 @@ def replace_quiz(
 
 
 @router.delete("/lessons/{lesson_id}/quiz", status_code=204, summary="Удалить квиз")
-def delete_quiz(lesson_id: int, db: Session = Depends(get_db)) -> Response:
+def delete_quiz(
+    lesson_id: int,
+    confirm_attempts_loss: bool = Query(default=False),
+    db: Session = Depends(get_db),
+) -> Response:
     try:
-        admin_content_service.delete_lesson_quiz(db, lesson_id)
+        admin_content_service.delete_lesson_quiz(
+            db, lesson_id, confirm_attempts_loss=confirm_attempts_loss
+        )
     except admin_content_service.AdminNotFoundError:
         raise _not_found() from None
+    except admin_content_service.AdminConflictError as error:
+        raise _conflict(error) from None
     return Response(status_code=204)
 
 

@@ -8,12 +8,12 @@
 from __future__ import annotations
 
 import argparse
-import os
 from dataclasses import dataclass
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.content import WEEKS
 from app.db.content.builder import build_blocks
 from app.db.curriculum_data import COURSE
@@ -28,12 +28,12 @@ class ContentResult:
     quizzes_created: int
 
 
-def _create_quiz(session: Session, lesson: Lesson, data: dict) -> Quiz:
+def _create_quiz(session: Session, lesson: Lesson, data: dict, *, published: bool) -> Quiz:
     quiz = Quiz(
         lesson_id=lesson.id,
         title=f"Проверка: {lesson.title}",
         description="10 вопросов с объяснением каждого ответа.",
-        is_published=True,
+        is_published=published,
     )
     session.add(quiz)
     session.flush()
@@ -73,24 +73,38 @@ def seed_content(
     if course is None:
         raise RuntimeError("Сначала загрузите структуру курса: python -m app.db.seed")
 
+    # Обычная дозагрузка не должна перепубликовать скрытое и не должна
+    # связывать контент с уроком по позиции: администратор мог переставить уроки.
+    has_content = any(
+        lesson.blocks or lesson.quiz for module in course.modules for lesson in module.lessons
+    )
+    publish_new = not has_content
+    if publish_new:
+        course.is_published = True
+
     lessons_filled = 0
     quizzes_created = 0
-    course.is_published = True
 
     for module in course.modules:
-        week = WEEKS.get(module.position)
+        module_index = next(
+            (index for index, source in enumerate(COURSE.modules) if source.title == module.title),
+            None,
+        )
+        if module_index is None:
+            continue
+        week = WEEKS.get(module_index + 1)
         if week is None:
             raise RuntimeError(f"Нет контента для модуля {module.position}")
-        if len(week) != len(module.lessons):
-            raise RuntimeError(
-                f"Модуль {module.position}: уроков в программе {len(module.lessons)}, "
-                f"контента {len(week)}"
-            )
 
-        for lesson, data in zip(module.lessons, week, strict=True):
-            lesson.title = data["title"]
-            lesson.summary = data["summary"]
-            lesson.is_published = True
+        by_title = {lesson.title: lesson for lesson in module.lessons}
+        for data in week:
+            lesson = by_title.get(data["title"])
+            if lesson is None:
+                # Урок переименован или удалён администратором: не подменяем
+                # его чужим материалом и не трогаем.
+                continue
+            if publish_new:
+                lesson.is_published = True
 
             if refresh and lesson.blocks:
                 session.execute(delete(LessonBlock).where(LessonBlock.lesson_id == lesson.id))
@@ -113,10 +127,13 @@ def seed_content(
                 session.flush()
                 quiz = None
             if quiz is None:
-                _create_quiz(session, lesson, data)
+                _create_quiz(
+                    session,
+                    lesson,
+                    data,
+                    published=publish_new or lesson.is_published,
+                )
                 quizzes_created += 1
-            else:
-                quiz.is_published = True
 
     session.flush()
     return ContentResult(lessons_filled=lessons_filled, quizzes_created=quizzes_created)
@@ -134,7 +151,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.refresh and os.environ.get("ENVIRONMENT") == "production":
+    if args.refresh and get_settings().environment == "production":
         parser.error("--refresh запрещён в production")
     if args.refresh and not args.confirm:
         parser.error("--refresh удаляет попытки; добавьте --confirm")

@@ -117,6 +117,23 @@ def test_logout_clears_cookie_and_handles_bad_header():
         assert "Сначала войдите" in test_client.get("/ui/cart").text
 
 
+def test_logout_with_bearer_and_cookie_revokes_both():
+    with client() as test_client:
+        token = login(test_client)
+        headers = {"Authorization": f"Bearer {token}"}
+        test_client.post(
+            "/ui/login",
+            data={"email": "student2@example.com", "password": "password123"},
+            follow_redirects=False,
+        )
+        assert test_client.get("/api/cart").status_code == 200
+        assert test_client.get("/api/cart", headers=headers).status_code == 200
+
+        assert test_client.post("/api/logout", headers=headers).status_code == 204
+        assert test_client.get("/api/cart").status_code == 401
+        assert test_client.get("/api/cart", headers=headers).status_code == 401
+
+
 def test_cyrillic_search_category_and_invalid_ui_product():
     with client() as test_client:
         assert len(test_client.get("/api/products", params={"q": "монитор"}).json()) == 1

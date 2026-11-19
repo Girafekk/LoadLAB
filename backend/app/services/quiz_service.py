@@ -204,6 +204,11 @@ def submit_attempt(
     quiz = _load_quiz(db, lesson_id)
     if quiz is None:
         raise QuizNotFoundError
+    # Блокируем квиз до конца транзакции: замена квиза администратором
+    # не должна удалить попытку, которая уже принята ученику.
+    locked = db.scalar(select(Quiz.id).where(Quiz.id == quiz.id).with_for_update())
+    if locked is None:
+        raise QuizNotFoundError
     _ensure_valid_content(quiz)
 
     selected = _validate_answers(quiz.questions, data.answers)

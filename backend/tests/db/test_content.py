@@ -145,3 +145,51 @@ def test_refresh_requires_explicit_confirmation(db_session):
     db_session.commit()
     assert refreshed.lessons_filled == 60
     assert refreshed.quizzes_created == 60
+
+
+def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
+    seed_curriculum(db_session)
+    seed_content(db_session)
+    db_session.commit()
+
+    module = db_session.scalars(select(Lesson).order_by(Lesson.id)).first()
+    assert module is not None
+    first, second = list(
+        db_session.scalars(
+            select(Lesson).where(Lesson.module_id == module.module_id).order_by(Lesson.position)
+        )
+    )[:2]
+    first_title = first.title
+    first_position = first.position
+    second_position = second.position
+
+    first.position = 0
+    db_session.flush()
+    second.position = first_position
+    db_session.flush()
+    first.position = second_position
+    first.is_published = False
+    db_session.flush()
+    quiz = db_session.scalar(select(Quiz).where(Quiz.lesson_id == first.id))
+    assert quiz is not None
+    quiz.is_published = False
+    db_session.commit()
+
+    blocks_before = db_session.scalar(select(func.count()).select_from(LessonBlock))
+    result = seed_content(db_session)
+    db_session.commit()
+
+    assert result.lessons_filled == 0
+    assert result.quizzes_created == 0
+    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == blocks_before
+    db_session.expire_all()
+    reloaded = db_session.get(Lesson, first.id)
+    assert reloaded is not None
+    assert reloaded.title == first_title
+    assert reloaded.is_published is False
+    heading = next(block for block in reloaded.blocks if block.type == "heading")
+    assert heading.content["text"] == first_title
+    reloaded_quiz = db_session.scalar(select(Quiz).where(Quiz.lesson_id == first.id))
+    assert reloaded_quiz is not None
+    assert reloaded_quiz.is_published is False
+    assert first_title in reloaded_quiz.title

@@ -1217,7 +1217,7 @@ LESSONS = (
                     ("0 — остальным полный доступ", False),
                     ("7 — владельцу чтение, запись и запуск", True),
                     ("5 — группе чтение и запуск", True),
-                    ("750 — количество файлов в папке", False),
+                    ("750 — владельцу 7, группе 5, остальным 1", False),
                 ),
             ),
             question(
@@ -1584,7 +1584,7 @@ LESSONS = (
                 (
                     ("SELECT id FROM orders WHERE status = 'new';", True),
                     ("SELECT id FROM orders WHERE status = new;", False),
-                    ("SELECT id FROM orders WHERE 'new' = status;", False),
+                    ("SELECT id FROM orders WHERE status = ' new';", False),
                     ("SELECT id FROM orders WHERE status IS new;", False),
                 ),
             ),

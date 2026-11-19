@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.curriculum_data import COURSE
@@ -153,7 +154,11 @@ def create_course(db: Session, data: CourseCreate) -> CourseAdmin:
         raise AdminConflictError("Курс с таким адресом уже существует")
     course = Course(slug=data.slug, title=data.title, description=data.description)
     db.add(course)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise AdminConflictError("Курс с таким адресом уже существует") from None
     db.refresh(course)
     return _course_admin(db, course)
 
@@ -197,7 +202,11 @@ def create_module(db: Session, course_id: int, data: ModuleCreate) -> ModuleAdmi
         position=position,
     )
     db.add(module)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise AdminConflictError("Позиция модуля уже занята, обновите страницу") from None
     db.refresh(module)
     return ModuleAdmin(
         id=module.id,
@@ -273,7 +282,11 @@ def create_lesson(db: Session, module_id: int, data: LessonCreate) -> LessonBrie
         position=position,
     )
     db.add(lesson)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise AdminConflictError("Позиция урока уже занята, обновите страницу") from None
     db.refresh(lesson)
     return LessonBriefAdmin(
         id=lesson.id,
@@ -444,7 +457,7 @@ def replace_lesson_quiz(db: Session, lesson_id: int, data: QuizAdminPayload) -> 
         if not any(option.is_correct for option in question.options):
             raise AdminValidationError("В каждом вопросе должен быть верный вариант")
 
-    existing = db.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id))
+    existing = db.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id).with_for_update())
     if existing is not None:
         attempts_count = int(
             db.scalar(
@@ -492,11 +505,21 @@ def replace_lesson_quiz(db: Session, lesson_id: int, data: QuizAdminPayload) -> 
     return get_lesson_quiz(db, lesson.id)  # type: ignore[return-value]
 
 
-def delete_lesson_quiz(db: Session, lesson_id: int) -> None:
+def delete_lesson_quiz(db: Session, lesson_id: int, confirm_attempts_loss: bool = False) -> None:
     lesson = _lesson(db, lesson_id)
-    quiz = db.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id))
+    quiz = db.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id).with_for_update())
     if quiz is None:
         raise AdminNotFoundError
+    attempts_count = int(
+        db.scalar(
+            select(func.count()).select_from(QuizAttempt).where(QuizAttempt.quiz_id == quiz.id)
+        )
+        or 0
+    )
+    if attempts_count and not confirm_attempts_loss:
+        raise AdminConflictError(
+            f"У квиза {attempts_count} попыток учеников. Подтвердите удаление истории."
+        )
     db.delete(quiz)
     db.commit()
 
@@ -542,7 +565,18 @@ def list_students(db: Session) -> list[StudentProgress]:
             QuizAttempt.user_id,
             func.count(),
             func.max(QuizAttempt.created_at),
-        ).group_by(QuizAttempt.user_id)
+        )
+        .join(Quiz)
+        .join(Lesson)
+        .join(Module)
+        .join(Course)
+        .where(
+            Quiz.is_published.is_(True),
+            Lesson.is_published.is_(True),
+            Course.is_published.is_(True),
+            Course.slug == COURSE.slug,
+        )
+        .group_by(QuizAttempt.user_id)
     ).all()
     attempts_by_user = {int(user_id): int(count) for user_id, count, _ in attempt_rows}
     last_attempt_by_user = {
@@ -550,9 +584,16 @@ def list_students(db: Session) -> list[StudentProgress]:
     }
 
     last_progress_rows = db.execute(
-        select(LessonProgress.user_id, func.max(LessonProgress.completed_at)).group_by(
-            LessonProgress.user_id
+        select(LessonProgress.user_id, func.max(LessonProgress.completed_at))
+        .join(Lesson)
+        .join(Module)
+        .join(Course)
+        .where(
+            Lesson.is_published.is_(True),
+            Course.is_published.is_(True),
+            Course.slug == COURSE.slug,
         )
+        .group_by(LessonProgress.user_id)
     ).all()
     last_progress_by_user = {
         int(user_id): last for user_id, last in last_progress_rows if last is not None

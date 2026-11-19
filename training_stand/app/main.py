@@ -7,6 +7,7 @@ import html
 import os
 import secrets
 import sqlite3
+import threading
 from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ from pydantic import BaseModel, Field
 DB_PATH = Path(os.environ.get("STAND_DB_PATH", "stand.db"))
 RESET_TOKEN = os.environ.get("STAND_RESET_TOKEN", "loadlab-reset")
 TOKEN_TTL = timedelta(hours=12)
+_RESET_LOCK = threading.RLock()
 
 USERS = (
     ("student1@example.com", "password123"),
@@ -53,9 +55,11 @@ def _connect() -> sqlite3.Connection:
 
 
 @contextmanager
-def db(immediate: bool = False):
+def db(immediate: bool = False, exclusive: bool = False):
     connection = _connect()
-    if immediate:
+    if exclusive:
+        connection.execute("BEGIN EXCLUSIVE")
+    elif immediate:
         # Сериализуем чтение корзины и создание заказа: иначе два запроса
         # успевают прочитать одну корзину и создать два заказа.
         connection.execute("BEGIN IMMEDIATE")
@@ -121,11 +125,23 @@ def _create_schema(connection: sqlite3.Connection) -> None:
 
 
 def reset_database() -> None:
-    """Создаёт схему и тестовые данные заново."""
-    if DB_PATH.exists():
-        DB_PATH.unlink()
-    with db() as connection:
+    """Создаёт схему и тестовые данные заново в одной транзакции.
+
+    Файл SQLite не удаляется: параллельные читатели не должны увидеть
+    момент между удалением файла и созданием таблиц.
+    """
+    with _RESET_LOCK, db(exclusive=True) as connection:
         _create_schema(connection)
+        for table in (
+            "tokens",
+            "order_items",
+            "orders",
+            "cart_items",
+            "products",
+            "users",
+        ):
+            connection.execute(f"DELETE FROM {table}")
+        connection.execute("DELETE FROM sqlite_sequence")
         for email, password in USERS:
             connection.execute(
                 "INSERT INTO users(email, password_hash) VALUES (?, ?)",
@@ -376,11 +392,11 @@ def create_app() -> FastAPI:
             parts = authorization.split(None, 1)
             if len(parts) == 2 and parts[0].lower() == "bearer":
                 token = parts[1].strip()
-        if not token:
-            token = request.cookies.get("stand_token")
-        if token:
-            with db() as connection:
-                connection.execute("DELETE FROM tokens WHERE token = ?", (token,))
+        cookie_token = request.cookies.get("stand_token")
+        with db() as connection:
+            for value in {token, cookie_token}:
+                if value:
+                    connection.execute("DELETE FROM tokens WHERE token = ?", (value,))
         response.delete_cookie("stand_token")
 
     @app.get("/api/products", response_model=list[ProductRead])

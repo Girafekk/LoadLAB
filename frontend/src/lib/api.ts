@@ -422,8 +422,14 @@ export function replaceAdminQuiz(lessonId: number, body: QuizPayload): Promise<Q
   return apiRequest<QuizAdmin>(`/admin/lessons/${lessonId}/quiz`, { method: "PUT", body });
 }
 
-export function deleteAdminQuiz(lessonId: number): Promise<void> {
-  return apiRequest<void>(`/admin/lessons/${lessonId}/quiz`, { method: "DELETE" });
+export function deleteAdminQuiz(
+  lessonId: number,
+  confirmAttemptsLoss = false,
+): Promise<void> {
+  const query = confirmAttemptsLoss ? "?confirm_attempts_loss=true" : "";
+  return apiRequest<void>(`/admin/lessons/${lessonId}/quiz${query}`, {
+    method: "DELETE",
+  });
 }
 
 export function fetchAdminStudents(signal?: AbortSignal): Promise<StudentProgress[]> {

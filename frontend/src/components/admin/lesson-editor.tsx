@@ -292,7 +292,7 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
     if (!lesson || !window.confirm(t.deleteQuizConfirm)) return;
     setError(null);
     try {
-      await deleteAdminQuiz(lesson.id);
+      await deleteAdminQuiz(lesson.id, true);
       setQuizExists(false);
       setQuestions([]);
       setAttemptsCount(0);

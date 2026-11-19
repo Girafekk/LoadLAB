@@ -316,6 +316,55 @@ def test_admin_moves_lesson_and_handles_edge(api_client, db_session):
     assert edge.status_code == 409
 
 
+def test_admin_delete_quiz_requires_confirmation(api_client, db_session):
+    seed_curriculum(db_session)
+    _admin(api_client, db_session)
+    course_id = _course_id(db_session)
+    lesson_id = db_session.scalar(select(Lesson.id).order_by(Lesson.id))
+    payload = {
+        "title": "Квиз",
+        "is_published": True,
+        "questions": [
+            {
+                "kind": "theory",
+                "text": "Вопрос?",
+                "explanation": "Потому что так.",
+                "options": [
+                    {"text": "Верно", "is_correct": True},
+                    {"text": "Неверно", "is_correct": False},
+                ],
+            }
+        ],
+    }
+    assert (
+        api_client.put(f"/api/v1/admin/lessons/{lesson_id}/quiz", json=payload).status_code == 200
+    )
+    db_session.execute(update(Course).where(Course.id == course_id).values(is_published=True))
+    db_session.execute(update(Lesson).where(Lesson.id == lesson_id).values(is_published=True))
+    question_id = db_session.scalar(select(QuizQuestion.id))
+    option_id = db_session.scalar(
+        select(QuizOption.id).where(
+            QuizOption.question_id == question_id, QuizOption.is_correct.is_(True)
+        )
+    )
+    assert (
+        api_client.post(
+            f"/api/v1/lessons/{lesson_id}/quiz/attempts",
+            json={"answers": [{"question_id": question_id, "option_ids": [option_id]}]},
+        ).status_code
+        == 201
+    )
+
+    assert api_client.delete(f"/api/v1/admin/lessons/{lesson_id}/quiz").status_code == 409
+    assert (
+        api_client.delete(
+            f"/api/v1/admin/lessons/{lesson_id}/quiz?confirm_attempts_loss=true"
+        ).status_code
+        == 204
+    )
+    assert api_client.get(f"/api/v1/admin/lessons/{lesson_id}/quiz").json() is None
+
+
 def test_admin_deletes_course_and_children(api_client, db_session):
     _admin(api_client, db_session)
     course = api_client.post(
