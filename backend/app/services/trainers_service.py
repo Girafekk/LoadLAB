@@ -7,7 +7,7 @@ import shlex
 import sqlite3
 import time
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.models import Course, Lesson, Module
@@ -309,55 +309,68 @@ def _populate_sandbox(
     if time.monotonic() > deadline:
         raise TimeoutError
     _set_pg_timeout(db, deadline)
-    courses = list(
-        db.scalars(select(Course).where(Course.is_published.is_(True)).limit(MAX_SANDBOX_ROWS))
-    )
+    courses = db.execute(
+        select(
+            Course.id,
+            Course.slug,
+            Course.title,
+            func.substr(Course.description, 1, 1_000),
+            Course.is_published,
+        )
+        .where(Course.is_published.is_(True))
+        .limit(MAX_SANDBOX_ROWS)
+    ).all()
     if len(courses) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
         raise TimeoutError
     _set_pg_timeout(db, deadline)
-    modules = list(
-        db.scalars(
-            select(Module).join(Course).where(Course.is_published.is_(True)).limit(MAX_SANDBOX_ROWS)
+    modules = db.execute(
+        select(
+            Module.id,
+            Module.course_id,
+            Module.title,
+            func.substr(Module.summary, 1, 1_000),
+            Module.position,
         )
-    )
+        .join(Course)
+        .where(Course.is_published.is_(True))
+        .limit(MAX_SANDBOX_ROWS)
+    ).all()
     if len(modules) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
         raise TimeoutError
     _set_pg_timeout(db, deadline)
-    lessons = list(
-        db.scalars(
-            select(Lesson)
-            .join(Module)
-            .join(Course)
-            .where(Lesson.is_published.is_(True), Course.is_published.is_(True))
-            .limit(MAX_SANDBOX_ROWS)
+    lessons = db.execute(
+        select(
+            Lesson.id,
+            Lesson.module_id,
+            Lesson.title,
+            func.substr(Lesson.summary, 1, 1_000),
+            Lesson.estimated_minutes,
+            Lesson.position,
+            Lesson.is_published,
         )
-    )
+        .join(Module)
+        .join(Course)
+        .where(Lesson.is_published.is_(True), Course.is_published.is_(True))
+        .limit(MAX_SANDBOX_ROWS)
+    ).all()
     if len(lessons) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
         raise TimeoutError
     connection.executemany(
         "INSERT INTO courses VALUES (?, ?, ?, ?, ?)",
         [
-            (item.id, item.slug, item.title, item.description, int(item.is_published))
-            for item in courses
+            tuple(int(value) if index == 4 else value for index, value in enumerate(row))
+            for row in courses
         ],
     )
     connection.executemany(
         "INSERT INTO modules VALUES (?, ?, ?, ?, ?)",
-        [(item.id, item.course_id, item.title, item.summary, item.position) for item in modules],
+        [tuple(row) for row in modules],
     )
     connection.executemany(
         "INSERT INTO lessons VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
-            (
-                item.id,
-                item.module_id,
-                item.title,
-                item.summary,
-                item.estimated_minutes,
-                item.position,
-                int(item.is_published),
-            )
-            for item in lessons
+            tuple(int(value) if index in (6,) else value for index, value in enumerate(row))
+            for row in lessons
         ],
     )
     if time.monotonic() > deadline:
