@@ -8,6 +8,7 @@ from app.models import (
     Lesson,
     LessonProgress,
     Module,
+    Quiz,
     QuizAttempt,
     QuizOption,
     QuizQuestion,
@@ -199,12 +200,38 @@ def test_admin_sees_student_progress(api_client, db_session):
     db_session.add(LessonProgress(user_id=student.id, lesson_id=lesson_id))
     db_session.flush()
 
+    # Данные другого курса и скрытого урока не должны попадать в прогресс.
+    other = Course(slug="other", title="Другой курс", is_published=True)
+    db_session.add(other)
+    db_session.flush()
+    other_module = Module(course_id=other.id, title="Другой модуль", position=1)
+    db_session.add(other_module)
+    db_session.flush()
+    other_lesson = Lesson(
+        module_id=other_module.id, title="Другой урок", position=1, is_published=True
+    )
+    db_session.add(other_lesson)
+    db_session.flush()
+    other_quiz = Quiz(lesson_id=other_lesson.id, title="Другой квиз", is_published=True)
+    db_session.add(other_quiz)
+    db_session.flush()
+    db_session.add(LessonProgress(user_id=student.id, lesson_id=other_lesson.id))
+    db_session.add(QuizAttempt(quiz_id=other_quiz.id, user_id=student.id, score=1, max_score=1))
+    hidden_lesson = db_session.scalars(
+        select(Lesson).where(Lesson.is_published.is_(False)).order_by(Lesson.id)
+    ).first()
+    assert hidden_lesson is not None
+    db_session.add(LessonProgress(user_id=student.id, lesson_id=hidden_lesson.id))
+    db_session.flush()
+
     listing = api_client.get("/api/v1/admin/students")
     assert listing.status_code == 200
     row = next(item for item in listing.json() if item["email"] == student.email)
     assert row["completed_lessons"] == 1
     assert row["total_lessons"] == 1
     assert row["percent"] == 100
+    assert row["quiz_attempts"] == 0
+    assert row["last_activity"] is not None
 
     detail = api_client.get(f"/api/v1/admin/students/{student.id}")
     assert detail.status_code == 200

@@ -541,6 +541,82 @@ def _published_lesson_totals(db: Session) -> int:
     )
 
 
+def _student_progress(db: Session, user: User, total: int) -> StudentProgress:
+    completed = int(
+        db.scalar(
+            select(func.count())
+            .select_from(LessonProgress)
+            .join(Lesson)
+            .join(Module)
+            .join(Course)
+            .where(
+                LessonProgress.user_id == user.id,
+                Lesson.is_published.is_(True),
+                Course.is_published.is_(True),
+                Course.slug == COURSE.slug,
+            )
+        )
+        or 0
+    )
+    attempts = int(
+        db.scalar(
+            select(func.count())
+            .select_from(QuizAttempt)
+            .join(Quiz)
+            .join(Lesson)
+            .join(Module)
+            .join(Course)
+            .where(
+                QuizAttempt.user_id == user.id,
+                Quiz.is_published.is_(True),
+                Lesson.is_published.is_(True),
+                Course.is_published.is_(True),
+                Course.slug == COURSE.slug,
+            )
+        )
+        or 0
+    )
+    last_attempt = db.scalar(
+        select(func.max(QuizAttempt.created_at))
+        .join(Quiz)
+        .join(Lesson)
+        .join(Module)
+        .join(Course)
+        .where(
+            QuizAttempt.user_id == user.id,
+            Quiz.is_published.is_(True),
+            Lesson.is_published.is_(True),
+            Course.is_published.is_(True),
+            Course.slug == COURSE.slug,
+        )
+    )
+    last_progress = db.scalar(
+        select(func.max(LessonProgress.completed_at))
+        .join(Lesson)
+        .join(Module)
+        .join(Course)
+        .where(
+            LessonProgress.user_id == user.id,
+            Lesson.is_published.is_(True),
+            Course.is_published.is_(True),
+            Course.slug == COURSE.slug,
+        )
+    )
+    last_activity = max(
+        [value for value in (last_attempt, last_progress) if isinstance(value, datetime)],
+        default=None,
+    )
+    return StudentProgress(
+        id=user.id,
+        email=user.email,
+        completed_lessons=completed,
+        total_lessons=total,
+        percent=(100 * completed // total) if total else 0,
+        quiz_attempts=attempts,
+        last_activity=last_activity,
+    )
+
+
 def list_students(db: Session) -> list[StudentProgress]:
     total = _published_lesson_totals(db)
     students = list(db.scalars(select(User).where(User.role == "student").order_by(User.email)))
@@ -632,7 +708,7 @@ def student_detail(db: Session, user_id: int) -> StudentProgressDetail:
     user = db.get(User, user_id)
     if user is None or user.role != "student":
         raise AdminNotFoundError
-    progress = next(item for item in list_students(db) if item.id == user.id)
+    progress = _student_progress(db, user, _published_lesson_totals(db))
     modules = db.scalars(
         select(Module)
         .join(Course)
