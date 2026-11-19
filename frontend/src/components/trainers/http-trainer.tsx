@@ -15,6 +15,7 @@ export function HttpTrainer() {
   const [result, setResult] = useState<CheckResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -64,6 +65,7 @@ export function HttpTrainer() {
           setSelected(next);
           setPath("");
           setResult(null);
+          setShowHint(false);
         }}
         className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
       >
@@ -77,7 +79,17 @@ export function HttpTrainer() {
       {selected ? (
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm leading-relaxed">{selected.task}</p>
-          <p className="mt-2 text-xs text-muted-foreground">{selected.hint}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-1 px-0"
+            onClick={() => setShowHint((value) => !value)}
+          >
+            {showHint ? t.hideHint : t.showHint}
+          </Button>
+          {showHint ? (
+            <p className="mt-1 text-xs text-muted-foreground">{selected.hint}</p>
+          ) : null}
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <label className="text-sm">
               <span className="mb-1 block font-medium">{t.method}</span>

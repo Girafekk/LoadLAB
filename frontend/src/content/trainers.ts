@@ -10,6 +10,8 @@ export const trainersContent = {
     analysis: "Анализ",
   },
   choose: "Выберите упражнение",
+  showHint: "Нужна подсказка?",
+  hideHint: "Скрыть подсказку",
   task: "Задание",
   hint: "Подсказка",
   method: "Метод",
@@ -46,4 +48,9 @@ export const aiContent = {
   providerLlm: "Ответ AI",
   providerDeepSeek: "DeepSeek",
   model: "модель",
+  explainAgain: "Объяснить иначе",
+  showExample: "Покажи пример",
+  saveCheatsheet: "В мои шпаргалки",
+  cheatsheetSaved: "Сохранено в мои шпаргалки.",
+  editCheatsheet: "Можно отредактировать перед сохранением.",
 } as const;

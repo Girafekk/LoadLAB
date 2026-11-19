@@ -47,6 +47,7 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [onlyErrors, setOnlyErrors] = useState(false);
   const resultRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   // Номер запроса истории: ответ на старый запрос не должен перезаписать
@@ -178,9 +179,18 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
     setAnswers({});
     setResult(null);
     setError(null);
+    setOnlyErrors(false);
     // После исчезновения кнопки «Пройти ещё раз» возвращаем фокус к заголовку
     // квиза, а не теряем его.
     requestAnimationFrame(() => headingRef.current?.focus());
+  }
+
+  function goToFirstUnanswered() {
+    const next = quiz.questions.find((question) => !isAnswered(question, answers));
+    if (!next) return;
+    const element = document.getElementById(`quiz-question-${next.id}`);
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    element?.querySelector<HTMLInputElement>("input")?.focus();
   }
 
   const resultByQuestion = new Map(
@@ -247,6 +257,14 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
           <Button variant="outline" size="lg" className="mt-4" onClick={restart}>
             {t.retry}
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-4 ml-2"
+            onClick={() => setOnlyErrors((value) => !value)}
+          >
+            {onlyErrors ? t.showAll : t.onlyErrors}
+          </Button>
         </div>
       ) : null}
 
@@ -254,8 +272,13 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
         {quiz.questions.map((question, index) => {
           const review = resultByQuestion.get(question.id);
           const chosen = answers[question.id] ?? [];
+          if (result && onlyErrors && review?.is_correct) return null;
           return (
-            <li key={question.id} className="rounded-xl border bg-card p-5">
+            <li
+              key={question.id}
+              id={`quiz-question-${question.id}`}
+              className="rounded-xl border bg-card p-5"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">
                   {index + 1}. {t.kind[question.kind] ?? question.kind}
@@ -341,6 +364,11 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
           </Button>
           {left > 0 ? (
             <span className="text-sm text-muted-foreground">{t.answerAll(left)}</span>
+          ) : null}
+          {left > 0 ? (
+            <Button variant="ghost" size="sm" onClick={goToFirstUnanswered}>
+              {t.firstUnanswered}
+            </Button>
           ) : null}
         </div>
       ) : null}

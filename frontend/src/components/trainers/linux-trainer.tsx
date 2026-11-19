@@ -15,6 +15,7 @@ export function LinuxTrainer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cwd, setCwd] = useState("/srv/app");
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,6 +62,7 @@ export function LinuxTrainer() {
         onChange={(event) => {
           setSelected(exercises.find((item) => item.id === event.target.value) ?? null);
           setResult(null);
+          setShowHint(false);
         }}
         className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
       >
@@ -74,7 +76,17 @@ export function LinuxTrainer() {
       {selected ? (
         <div className="rounded-xl border bg-card p-4">
           <p className="text-sm leading-relaxed">{selected.task}</p>
-          <p className="mt-2 text-xs text-muted-foreground">{selected.hint}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-1 px-0"
+            onClick={() => setShowHint((value) => !value)}
+          >
+            {showHint ? t.hideHint : t.showHint}
+          </Button>
+          {showHint ? (
+            <p className="mt-1 text-xs text-muted-foreground">{selected.hint}</p>
+          ) : null}
           <label className="mt-4 block text-sm font-medium" htmlFor="linux-command">
             {t.command}
           </label>

@@ -9,6 +9,7 @@ import type { AiAnswer, AiHistoryItem, AiStatus } from "@/lib/ai-types";
 
 export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
   const [question, setQuestion] = useState("");
+  const [lastQuestion, setLastQuestion] = useState("");
   const [answer, setAnswer] = useState<AiAnswer | null>(null);
   const [history, setHistory] = useState<AiHistoryItem[]>([]);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
@@ -26,15 +27,16 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
     return () => controller.abort();
   }, [lessonId]);
 
-  async function ask() {
-    const value = question.trim();
-    if (!value || busy) return;
+  async function askValue(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || busy) return;
     setBusy(true);
     setError(null);
     setAnswer(null);
     try {
-      const result = await askAiTeacher({ lesson_id: lessonId, question: value });
+      const result = await askAiTeacher({ lesson_id: lessonId, question: trimmed });
       setAnswer(result);
+      setLastQuestion(trimmed);
       setQuestion("");
       setHistory(await fetchAiHistory(lessonId));
     } catch (caught) {
@@ -46,6 +48,10 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function ask() {
+    askValue(question);
   }
 
   return (
@@ -93,6 +99,24 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
                 : t.providerLocal}
           </p>
           <div className="mt-2 text-sm leading-relaxed whitespace-pre-line">{answer.answer}</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => askValue(lastQuestion)}
+              disabled={busy || !lastQuestion}
+            >
+              {t.explainAgain}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => askValue("Покажи конкретный пример по теме этого урока.")}
+              disabled={busy}
+            >
+              {t.showExample}
+            </Button>
+          </div>
         </div>
       ) : null}
 
