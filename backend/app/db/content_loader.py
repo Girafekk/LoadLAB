@@ -116,8 +116,13 @@ def seed_content(
             if lesson is None:
                 # Совместимость с уроками, созданными до появления content_key.
                 lesson = by_title.get(data["title"])
-                if lesson is not None and lesson.content_key is None:
-                    lesson.content_key = content_key
+                if lesson is not None:
+                    if lesson.content_key is None:
+                        lesson.content_key = content_key
+                    else:
+                        # Название совпало, но урок уже привязан к другому
+                        # материалу: не подменяем привязку.
+                        lesson = None
             if lesson is None:
                 # Урок переименован или удалён администратором: не подменяем
                 # его чужим материалом и не трогаем.
@@ -141,6 +146,9 @@ def seed_content(
                 lessons_filled += 1
 
             quiz = session.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id))
+            quiz_published = (
+                quiz.is_published if quiz is not None else (publish_new or lesson.is_published)
+            )
             if refresh and quiz is not None:
                 session.delete(quiz)
                 session.flush()
@@ -150,7 +158,7 @@ def seed_content(
                     session,
                     lesson,
                     data,
-                    published=publish_new or lesson.is_published,
+                    published=quiz_published,
                 )
                 quizzes_created += 1
 

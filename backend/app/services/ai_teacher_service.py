@@ -9,6 +9,7 @@ import urllib.request
 from urllib.parse import urlparse
 
 from sqlalchemy import select
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -31,21 +32,27 @@ class AiTeacherNotFoundError(Exception):
 
 
 def _block_text(block: LessonBlock) -> str:
-    content = block.content
-    if block.type in {"heading", "text", "callout"}:
-        return str(content.get("text", ""))
-    if block.type == "list":
-        return "\n".join(f"- {item}" for item in content.get("items", []))
-    if block.type == "code":
-        return f"Код:\n{content.get('code', '')}"
-    if block.type == "table":
-        headers = content.get("headers", [])
-        rows = content.get("rows", [])
-        lines = [" | ".join(str(cell) for cell in headers)]
-        lines.extend(" | ".join(str(cell) for cell in row) for row in rows)
-        return "\n".join(lines)
-    if block.type == "image":
-        return f"Схема: {content.get('caption', content.get('alt', ''))}"
+    try:
+        content = block.content
+        if not isinstance(content, dict):
+            return ""
+        if block.type in {"heading", "text", "callout"}:
+            return str(content.get("text", ""))
+        if block.type == "list":
+            items = content.get("items", [])
+            return "\n".join(f"- {item}" for item in items) if isinstance(items, list) else ""
+        if block.type == "code":
+            return f"Код:\n{content.get('code', '')}"
+        if block.type == "table":
+            headers = content.get("headers", [])
+            rows = content.get("rows", [])
+            lines = [" | ".join(str(cell) for cell in headers)]
+            lines.extend(" | ".join(str(cell) for cell in row) for row in rows)
+            return "\n".join(lines)
+        if block.type == "image":
+            return f"Схема: {content.get('caption', content.get('alt', ''))}"
+    except (AttributeError, TypeError, ValueError):
+        return ""
     return ""
 
 
@@ -276,28 +283,45 @@ def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
         raise AiTeacherNotFoundError
     previous = _previous_answer(db, user, lesson_id, question)
     mode = "simpler" if previous else "answer"
-    external = _external_answer(lesson, question, mode, previous)
-    if external is not None:
-        answer, provider = external
+    # Не держим соединение пула, пока ждём внешнего провайдера. В тестах
+    # сессия привязана к Connection с транзакцией, поэтому её не закрываем.
+    bind = db.get_bind()
+    separate_session = isinstance(bind, Engine)
+    if separate_session:
+        db.close()
+        write_db = Session(bind=bind)
     else:
-        answer = _local_answer(lesson, question, mode, previous)
-        provider = "local"
-    answer = _sanitize_answer(answer)
-    db.add(
-        AiTeacherMessage(
-            user_id=user.id,
-            lesson_id=lesson.id,
-            question=question,
-            answer=answer,
-            mode=mode,
-        )
-    )
+        write_db = db
     try:
-        db.commit()
-    except Exception:
-        # Ответ уже получен; сбой записи истории не должен превращаться в 500.
-        db.rollback()
-    return AiAnswer(answer=answer, mode=mode, provider=provider, lesson_id=lesson.id)
+        external = _external_answer(lesson, question, mode, previous)
+        if external is not None:
+            answer, provider = external
+        else:
+            answer = _local_answer(lesson, question, mode, previous)
+            provider = "local"
+        answer = answer[:10_000]
+        if not answer.strip():
+            answer = _local_answer(lesson, question, mode, previous)
+            provider = "local"
+        answer = _sanitize_answer(answer)
+        write_db.add(
+            AiTeacherMessage(
+                user_id=user.id,
+                lesson_id=lesson.id,
+                question=question,
+                answer=answer,
+                mode=mode,
+            )
+        )
+        try:
+            write_db.commit()
+        except Exception:
+            # Ответ уже получен; сбой записи истории не должен превращаться в 500.
+            write_db.rollback()
+        return AiAnswer(answer=answer, mode=mode, provider=provider, lesson_id=lesson.id)
+    finally:
+        if separate_session:
+            write_db.close()
 
 
 def history(db: Session, user: User, lesson_id: int | None = None) -> list[AiHistoryItem]:

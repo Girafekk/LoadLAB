@@ -7,7 +7,7 @@ import shlex
 import sqlite3
 import time
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.models import Course, Lesson, Module
@@ -170,6 +170,7 @@ FILES: dict[str, str] = {
     "/srv/app/notes.txt": "Учебные заметки\nПроверить p95\n",
 }
 ROOT_DIRS = ("/srv", "/srv/app")
+MAX_SANDBOX_ROWS = 500
 
 
 def list_http() -> list[HttpExercise]:
@@ -285,8 +286,7 @@ def _sqlite_sandbox(db: Session, deadline: float) -> sqlite3.Connection:
 def _populate_sandbox(
     connection: sqlite3.Connection, db: Session, deadline: float
 ) -> sqlite3.Connection:
-    connection.executescript(
-        """
+    connection.executescript("""
         CREATE TABLE courses (
             id INTEGER PRIMARY KEY, slug TEXT, title TEXT,
             description TEXT, is_published INTEGER
@@ -300,18 +300,33 @@ def _populate_sandbox(
             summary TEXT, estimated_minutes INTEGER, position INTEGER,
             is_published INTEGER
         );
-        """
+        """)
+    db.execute(text("SET LOCAL statement_timeout = '1500ms'"))
+    if time.monotonic() > deadline:
+        raise TimeoutError
+    courses = list(
+        db.scalars(select(Course).where(Course.is_published.is_(True)).limit(MAX_SANDBOX_ROWS))
     )
-    courses = list(db.scalars(select(Course).where(Course.is_published.is_(True))))
-    modules = list(db.scalars(select(Module).join(Course).where(Course.is_published.is_(True))))
+    if len(courses) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
+        raise TimeoutError
+    modules = list(
+        db.scalars(
+            select(Module).join(Course).where(Course.is_published.is_(True)).limit(MAX_SANDBOX_ROWS)
+        )
+    )
+    if len(modules) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
+        raise TimeoutError
     lessons = list(
         db.scalars(
             select(Lesson)
             .join(Module)
             .join(Course)
             .where(Lesson.is_published.is_(True), Course.is_published.is_(True))
+            .limit(MAX_SANDBOX_ROWS)
         )
     )
+    if len(lessons) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
+        raise TimeoutError
     connection.executemany(
         "INSERT INTO courses VALUES (?, ?, ?, ?, ?)",
         [

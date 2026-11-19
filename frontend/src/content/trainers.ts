@@ -26,6 +26,7 @@ export const trainersContent = {
   output: "Вывод",
   cwd: "Текущая папка",
   loading: "Загружаем упражнения…",
+  noExercises: "Упражнения пока недоступны.",
   error: "Не удалось выполнить упражнение. Попробуйте ещё раз.",
 } as const;
 

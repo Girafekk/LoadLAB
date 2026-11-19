@@ -16,6 +16,7 @@ export function LinuxTrainer() {
   const [error, setError] = useState<string | null>(null);
   const [cwd, setCwd] = useState("/srv/app");
   const [showHint, setShowHint] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -23,10 +24,12 @@ export function LinuxTrainer() {
       .then((data) => {
         setExercises(data);
         if (data[0]) setSelected(data[0]);
+        setLoaded(true);
       })
       .catch(() => {
         setError(t.error);
         setExercises([]);
+        setLoaded(true);
       });
     return () => controller.abort();
   }, []);
@@ -104,7 +107,9 @@ export function LinuxTrainer() {
             {t.run}
           </Button>
         </div>
-      ) : error ? null : (
+      ) : loaded ? (
+        <p className="text-sm text-muted-foreground">{t.noExercises}</p>
+      ) : (
         <p className="text-sm text-muted-foreground">{t.loading}</p>
       )}
 

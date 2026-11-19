@@ -168,6 +168,26 @@ def test_loader_backfills_keys_by_title_after_reorder(db_session):
     assert second_after.content_key == "w1-l2"
 
 
+def test_refresh_keeps_quiz_publication_flag(db_session):
+    seed_curriculum(db_session)
+    seed_content(db_session)
+    db_session.commit()
+    quiz = db_session.scalar(select(Quiz).order_by(Quiz.id))
+    assert quiz is not None
+    quiz_id = quiz.id
+    lesson_id = quiz.lesson_id
+    quiz.is_published = False
+    db_session.commit()
+
+    seed_content(db_session, refresh=True, confirm_refresh=True)
+    db_session.commit()
+    db_session.expire_all()
+    recreated = db_session.scalar(select(Quiz).where(Quiz.lesson_id == lesson_id))
+    assert recreated is not None
+    assert recreated.id != quiz_id
+    assert recreated.is_published is False
+
+
 def test_refresh_requires_explicit_confirmation(db_session):
     seed_curriculum(db_session)
     seed_content(db_session)
@@ -213,9 +233,11 @@ def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
     db_session.commit()
 
     blocks_before = db_session.scalar(select(func.count()).select_from(LessonBlock))
+    seed_curriculum(db_session)
     result = seed_content(db_session)
     db_session.commit()
 
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 60
     assert result.lessons_filled == 0
     assert result.quizzes_created == 0
     assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == blocks_before

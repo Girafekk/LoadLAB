@@ -16,6 +16,7 @@ export function HttpTrainer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -26,10 +27,12 @@ export function HttpTrainer() {
           setSelected(data[0]);
           setPath("");
         }
+        setLoaded(true);
       })
       .catch(() => {
         setError(t.error);
         setExercises([]);
+        setLoaded(true);
       });
     return () => controller.abort();
   }, []);
@@ -112,7 +115,9 @@ export function HttpTrainer() {
             {t.check}
           </Button>
         </div>
-      ) : error ? null : (
+      ) : loaded ? (
+        <p className="text-sm text-muted-foreground">{t.noExercises}</p>
+      ) : (
         <p className="text-sm text-muted-foreground">{t.loading}</p>
       )}
 

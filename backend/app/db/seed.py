@@ -67,18 +67,47 @@ def seed_curriculum(session: Session, data: CourseData = COURSE) -> SeedResult:
             session.flush()
             modules_created += 1
 
-        existing_positions = set(
-            session.scalars(select(Lesson.position).where(Lesson.module_id == module.id))
-        )
         for lesson_position, lesson_title in enumerate(module_data.lessons, start=1):
-            if lesson_position in existing_positions:
+            content_key = f"w{module_position}-l{lesson_position}"
+            # Сначала ищем по неизменяемому ключу: перестановка урока не должна
+            # приводить к созданию дубля или конфликту уникального ключа.
+            if (
+                session.scalar(
+                    select(Lesson).where(
+                        Lesson.module_id == module.id, Lesson.content_key == content_key
+                    )
+                )
+                is not None
+            ):
+                continue
+            # Старый урок без ключа можно привязать только по названию.
+            legacy = session.scalar(
+                select(Lesson).where(
+                    Lesson.module_id == module.id,
+                    Lesson.title == lesson_title,
+                    Lesson.content_key.is_(None),
+                )
+            )
+            if legacy is not None:
+                legacy.content_key = content_key
+                continue
+            if (
+                session.scalar(
+                    select(Lesson).where(
+                        Lesson.module_id == module.id, Lesson.title == lesson_title
+                    )
+                )
+                is not None
+            ):
+                # Урок с таким названием уже есть, но с другим ключом:
+                # не создаём второй и не перезаписываем чужую привязку.
                 continue
             session.add(
                 Lesson(
                     module_id=module.id,
                     title=lesson_title,
                     position=lesson_position,
-                    content_key=f"w{module_position}-l{lesson_position}",
+                    content_key=content_key,
                 )
             )
             lessons_created += 1

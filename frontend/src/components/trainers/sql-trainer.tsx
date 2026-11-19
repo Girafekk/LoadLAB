@@ -15,6 +15,7 @@ export function SqlTrainer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -22,10 +23,12 @@ export function SqlTrainer() {
       .then((data) => {
         setExercises(data);
         if (data[0]) setSelected(data[0]);
+        setLoaded(true);
       })
       .catch(() => {
         setError(t.error);
         setExercises([]);
+        setLoaded(true);
       });
     return () => controller.abort();
   }, []);
@@ -98,7 +101,9 @@ export function SqlTrainer() {
             {t.run}
           </Button>
         </div>
-      ) : error ? null : (
+      ) : loaded ? (
+        <p className="text-sm text-muted-foreground">{t.noExercises}</p>
+      ) : (
         <p className="text-sm text-muted-foreground">{t.loading}</p>
       )}
 

@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
 type Tab = "http" | "sql" | "linux" | "analysis";
 
 export function Trainers() {
-  const { status } = useAuth();
+  const { status, user, version } = useAuth();
+  const owner = user ? `${user.id}:${version}` : "guest";
   const [tab, setTab] = useState<Tab>("http");
 
   if (status === "loading") {
@@ -56,10 +57,10 @@ export function Trainers() {
         ))}
       </div>
       <div className="mt-6">
-        {tab === "http" ? <HttpTrainer /> : null}
-        {tab === "sql" ? <SqlTrainer /> : null}
-        {tab === "linux" ? <LinuxTrainer /> : null}
-        {tab === "analysis" ? <AnalysisTrainer /> : null}
+        {tab === "http" ? <HttpTrainer key={`http-${owner}`} /> : null}
+        {tab === "sql" ? <SqlTrainer key={`sql-${owner}`} /> : null}
+        {tab === "linux" ? <LinuxTrainer key={`linux-${owner}`} /> : null}
+        {tab === "analysis" ? <AnalysisTrainer key={`analysis-${owner}`} /> : null}
       </div>
     </div>
   );
