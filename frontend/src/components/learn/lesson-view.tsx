@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
+import { AiTeacherPanel } from "@/components/learn/ai-teacher-panel";
 import { LessonQuiz } from "@/components/learn/lesson-quiz";
 import { LessonTools } from "@/components/learn/lesson-tools";
 import { Badge } from "@/components/ui/badge";
@@ -385,6 +386,7 @@ function LessonViewContent({ lessonId }: { lessonId: number | null }) {
       {/* Ключ по ученику: при смене пользователя квиз и материалы начинаются заново. */}
       <LessonQuiz key={`quiz-${lessonId}-${user?.id ?? "guest"}`} lessonId={lessonId} />
       <LessonTools key={`tools-${lessonId}-${user?.id ?? "guest"}`} lessonId={lessonId} />
+      <AiTeacherPanel key={`ai-${lessonId}-${user?.id ?? "guest"}`} lessonId={lessonId} />
 
       <div className="mt-10 flex flex-wrap items-center gap-3">
         <Button size="lg" className="px-4" onClick={toggleCompleted} disabled={saving}>

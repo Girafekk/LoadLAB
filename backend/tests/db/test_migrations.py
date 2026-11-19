@@ -22,6 +22,7 @@ APP_TABLES = {
     "saved_questions",
     "review_items",
     "cheatsheets",
+    "ai_teacher_messages",
 }
 
 
@@ -39,6 +40,32 @@ def _table_names(engine: Engine) -> set[str]:
 
 def test_upgrade_head_creates_all_tables(test_engine):
     assert APP_TABLES <= _table_names(test_engine)
+
+
+def test_ai_teacher_messages_schema(test_engine):
+    inspector = inspect(test_engine)
+    columns = {column["name"] for column in inspector.get_columns("ai_teacher_messages")}
+    assert columns == {
+        "id",
+        "user_id",
+        "lesson_id",
+        "question",
+        "answer",
+        "mode",
+        "created_at",
+        "updated_at",
+    }
+    indexes = {index["name"] for index in inspector.get_indexes("ai_teacher_messages")}
+    assert {"ix_ai_teacher_messages_user_id", "ix_ai_teacher_messages_lesson_id"} <= indexes
+    foreign_keys = {
+        foreign_key["name"]: foreign_key
+        for foreign_key in inspector.get_foreign_keys("ai_teacher_messages")
+    }
+    assert set(foreign_keys) == {
+        "fk_ai_teacher_messages_user_id_users",
+        "fk_ai_teacher_messages_lesson_id_lessons",
+    }
+    assert all(item["options"]["ondelete"] == "CASCADE" for item in foreign_keys.values())
 
 
 def test_sessions_table_matches_model(test_engine):

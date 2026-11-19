@@ -98,3 +98,6 @@ class FailureRateLimiter:
 
 
 login_rate_limiter = FailureRateLimiter(LOGIN_MAX_FAILURES, LOGIN_WINDOW_SECONDS)
+# AI Teacher может обращаться к платному провайдеру: ограничиваем частоту вопросов.
+ai_teacher_rate_limiter = FailureRateLimiter(15, 60)
+trainer_sql_rate_limiter = FailureRateLimiter(30, 60)

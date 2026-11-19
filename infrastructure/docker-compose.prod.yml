@@ -57,6 +57,9 @@ services:
       POSTGRES_DB: ${PROD_POSTGRES_DB:-loadlab_prod}
       POSTGRES_USER: ${POSTGRES_USER:-loadlab}
       POSTGRES_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Задайте PROD_POSTGRES_PASSWORD в файле .env}
+      AI_TEACHER_BASE_URL: ${AI_TEACHER_BASE_URL:-}
+      AI_TEACHER_API_KEY: ${AI_TEACHER_API_KEY:-}
+      AI_TEACHER_MODEL: ${AI_TEACHER_MODEL:-gpt-4o-mini}
     ports:
       # Напрямую наружу не нужен, но порт полезен для проверок и отладки.
       - "127.0.0.1:${PROD_BACKEND_PORT:-18000}:8000"

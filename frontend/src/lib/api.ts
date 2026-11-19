@@ -15,6 +15,7 @@ import type {
   QuizWithHistory,
 } from "@/lib/learn-types";
 
+import type { AiAnswer, AiHistoryItem, AiRecommendation, CheatsheetSuggestion } from "@/lib/ai-types";
 import type {
   BlockInput,
   CourseAdmin,
@@ -27,6 +28,16 @@ import type {
   StudentProgress,
   StudentProgressDetail,
 } from "@/lib/admin-types";
+import type {
+  AnalysisExercise,
+  AnalysisResult,
+  CheckResult,
+  HttpExercise,
+  LinuxExercise,
+  LinuxResult,
+  SqlExercise,
+  SqlResult,
+} from "@/lib/trainer-types";
 import type {
   Cheatsheet,
   LessonHighlight,
@@ -441,4 +452,77 @@ export function fetchAdminStudent(
   signal?: AbortSignal,
 ): Promise<StudentProgressDetail> {
   return apiRequest<StudentProgressDetail>(`/admin/students/${userId}`, { signal });
+}
+
+// --- Тренажёры ------------------------------------------------------------------
+
+export function fetchHttpExercises(signal?: AbortSignal): Promise<HttpExercise[]> {
+  return apiRequest<HttpExercise[]>("/trainers/http", { signal });
+}
+
+export function checkHttpExercise(body: {
+  exercise_id: string;
+  method: string;
+  path: string;
+}): Promise<CheckResult> {
+  return apiRequest<CheckResult>("/trainers/http/check", { method: "POST", body });
+}
+
+export function fetchSqlExercises(signal?: AbortSignal): Promise<SqlExercise[]> {
+  return apiRequest<SqlExercise[]>("/trainers/sql", { signal });
+}
+
+export function runSqlExercise(body: {
+  exercise_id: string;
+  query: string;
+}): Promise<SqlResult> {
+  return apiRequest<SqlResult>("/trainers/sql/run", { method: "POST", body });
+}
+
+export function fetchLinuxExercises(signal?: AbortSignal): Promise<LinuxExercise[]> {
+  return apiRequest<LinuxExercise[]>("/trainers/linux", { signal });
+}
+
+export function runLinuxExercise(body: {
+  exercise_id: string;
+  command: string;
+  cwd?: string;
+}): Promise<LinuxResult> {
+  return apiRequest<LinuxResult>("/trainers/linux/run", { method: "POST", body });
+}
+
+export function fetchAnalysisExercises(signal?: AbortSignal): Promise<AnalysisExercise[]> {
+  return apiRequest<AnalysisExercise[]>("/trainers/analysis", { signal });
+}
+
+export function checkAnalysisExercise(body: {
+  exercise_id: string;
+  option_index: number;
+}): Promise<AnalysisResult> {
+  return apiRequest<AnalysisResult>("/trainers/analysis/check", { method: "POST", body });
+}
+
+// --- AI Teacher -----------------------------------------------------------------
+
+export function askAiTeacher(body: {
+  lesson_id: number;
+  question: string;
+}): Promise<AiAnswer> {
+  return apiRequest<AiAnswer>("/ai/teacher/ask", { method: "POST", body });
+}
+
+export function fetchAiHistory(
+  lessonId: number | null,
+  signal?: AbortSignal,
+): Promise<AiHistoryItem[]> {
+  const query = lessonId === null ? "" : `?lesson_id=${lessonId}`;
+  return apiRequest<AiHistoryItem[]>(`/ai/teacher/history${query}`, { signal });
+}
+
+export function fetchAiRecommendations(signal?: AbortSignal): Promise<AiRecommendation[]> {
+  return apiRequest<AiRecommendation[]>("/ai/teacher/recommendations", { signal });
+}
+
+export function fetchAiCheatsheet(signal?: AbortSignal): Promise<CheatsheetSuggestion> {
+  return apiRequest<CheatsheetSuggestion>("/ai/teacher/cheatsheet", { signal });
 }

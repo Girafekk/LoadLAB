@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     # Имя cookie, в которой браузер хранит токен сессии.
     session_cookie_name: str = "loadlab_session"
 
+    # --- AI Teacher ---
+    # Если base_url и api_key заданы, используется OpenAI-совместимый сервис.
+    # Без них AI Teacher работает в локальном режиме по материалу урока.
+    ai_teacher_base_url: str | None = None
+    ai_teacher_api_key: str | None = None
+    ai_teacher_model: str = "gpt-4o-mini"
+
     # --- База данных PostgreSQL ---
     postgres_host: str = "localhost"
     postgres_port: int = 5432

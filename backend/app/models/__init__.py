@@ -4,6 +4,7 @@
 увидит её при создании миграций.
 """
 
+from app.models.ai_teacher_message import AiTeacherMessage
 from app.models.cheatsheet import Cheatsheet
 from app.models.course import Course
 from app.models.lesson import Lesson
@@ -23,6 +24,7 @@ from app.models.user import User
 from app.models.user_session import UserSession
 
 __all__ = [
+    "AiTeacherMessage",
     "Cheatsheet",
     "Course",
     "Lesson",

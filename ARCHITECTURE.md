@@ -37,6 +37,7 @@ frontend/src/
 │   ├── learn/lessons/[lessonId]/page.tsx  # Урок  →  /learn/lessons/{id}
 │   ├── profile/page.tsx  # Профиль           →  /profile
 │   ├── profile/tools/page.tsx  # Мои материалы →  /profile/tools
+│   ├── trainers/page.tsx  # Тренажёры        →  /trainers
 │   ├── admin/page.tsx    # Админка: курс      →  /admin
 │   ├── admin/lessons/[lessonId]/page.tsx  # Редактор урока → /admin/lessons/{id}
 │   ├── admin/students/page.tsx  # Прогресс учеников → /admin/students
@@ -49,6 +50,7 @@ frontend/src/
 │   ├── auth/             # Формы входа и регистрации, профиль, AuthProvider
 │   ├── learn/            # Прогресс ученика, страница урока, квиз и материалы урока
 │   ├── tools/            # Страница «Мои материалы»
+│   ├── trainers/         # HTTP, SQL, Linux и анализ
 │   ├── admin/            # Панель администратора: курс, урок, ученики
 │   └── home/             # Разделы главной страницы
 ├── content/              # Тексты и данные для страниц (программа курса, тексты форм)
@@ -270,6 +272,24 @@ api/endpoints  →  services  →  models / db
 | `GET`, `POST /cheatsheets`, `PATCH`, `DELETE /cheatsheets/{id}` | Шпаргалки | 401, 404, 422 |
 | `GET /users/me/weak-topics` | Темы с лучшим результатом ниже 80 % | 401 |
 
+### Тренажёры и AI Teacher
+
+| Маршрут | Что делает | Ошибки |
+|---|---|---|
+| `GET /trainers/http`, `POST /trainers/http/check` | Упражнения HTTP и проверка метода/пути | 401 |
+| `GET /trainers/sql`, `POST /trainers/sql/run` | SQL-упражнения; только безопасный SELECT | 401, 422 |
+| `GET /trainers/linux`, `POST /trainers/linux/run` | Виртуальные команды Linux | 401 |
+| `GET /trainers/analysis`, `POST /trainers/analysis/check` | Разбор RPS, p95 и насыщения | 401 |
+| `POST /ai/teacher/ask` | Вопрос по опубликованному уроку | 401, 404, 422 |
+| `GET /ai/teacher/history` | История вопросов ученика | 401 |
+| `GET /ai/teacher/recommendations` | Слабые темы для повторения | 401 |
+| `GET /ai/teacher/cheatsheet` | Предложение шпаргалки | 401 |
+
+AI Teacher по умолчанию отвечает локально по материалу урока. Если заданы
+`AI_TEACHER_BASE_URL` и `AI_TEACHER_API_KEY`, используется OpenAI-совместимый
+провайдер; при ошибке внешнего вызова ответ строится локально. Вопросы и ответы
+хранятся в `ai_teacher_messages`, чужая история недоступна.
+
 ### Административная панель
 
 Все маршруты `/admin/...` требуют роль администратора. Ученику — 403, гостю — 401.
@@ -355,6 +375,7 @@ api/endpoints  →  services  →  models / db
 | `saved_questions` | Сложные вопросы ученика | `user_id`, `lesson_id`, `text`, `is_resolved` | урок необязателен; при удалении урока — `SET NULL` |
 | `review_items` | Список повторения | `user_id`, `lesson_id`, `title`, `note`, `is_done` | урок необязателен |
 | `cheatsheets` | Личные шпаргалки | `user_id`, `lesson_id`, `title`, `content` | урок необязателен |
+| `ai_teacher_messages` | История вопросов AI Teacher | `user_id`, `lesson_id`, `question`, `answer`, `mode` | индексы по `user_id` и `lesson_id`; каскад с пользователем и уроком |
 
 `lesson_progress` — осознанное исключение из общих правил: у неё нет своего `id`
 и пары `created_at`/`updated_at`, потому что строка означает только сам факт

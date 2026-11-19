@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AiStudyHelper } from "@/components/tools/ai-study-helper";
 import { StudyTools } from "@/components/tools/study-tools";
 import { toolsContent } from "@/content/tools";
 
@@ -19,6 +20,9 @@ export default function ToolsPage() {
       </p>
       <div className="mt-8">
         <StudyTools />
+      </div>
+      <div className="mt-8">
+        <AiStudyHelper />
       </div>
     </div>
   );

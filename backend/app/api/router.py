@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from app.api.endpoints import (
     admin,
     admin_content,
+    ai,
     auth,
     courses,
     health,
@@ -17,6 +18,7 @@ from app.api.endpoints import (
     notes,
     quizzes,
     student_tools,
+    trainers,
     users,
 )
 from app.core.csrf import verify_origin
@@ -33,3 +35,5 @@ api_router.include_router(lessons.router, tags=["Уроки"])
 api_router.include_router(quizzes.router, tags=["Квизы"])
 api_router.include_router(notes.router)
 api_router.include_router(student_tools.router)
+api_router.include_router(trainers.router, tags=["Тренажёры"])
+api_router.include_router(ai.router, tags=["AI Teacher"])

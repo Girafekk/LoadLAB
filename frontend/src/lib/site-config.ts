@@ -9,5 +9,6 @@ export const siteConfig = {
     { label: "Преимущества", href: "/#advantages" },
     { label: "Скоро", href: "/#upcoming" },
     { label: "Программа", href: "/learn" },
+    { label: "Тренажёры", href: "/trainers" },
   ],
 } as const;

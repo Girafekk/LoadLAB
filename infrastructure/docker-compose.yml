@@ -48,6 +48,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-loadlab}
       POSTGRES_USER: ${POSTGRES_USER:-loadlab}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Задайте POSTGRES_PASSWORD в файле .env}
+      # AI Teacher: пустые значения включают локальный режим.
+      AI_TEACHER_BASE_URL: ${AI_TEACHER_BASE_URL:-}
+      AI_TEACHER_API_KEY: ${AI_TEACHER_API_KEY:-}
+      AI_TEACHER_MODEL: ${AI_TEACHER_MODEL:-gpt-4o-mini}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8001}:8000"
     volumes:
