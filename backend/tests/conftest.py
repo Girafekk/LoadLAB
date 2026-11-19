@@ -6,6 +6,9 @@ import os
 # Значения задаются до импорта приложения, чтобы настройки их подхватили.
 os.environ.setdefault("POSTGRES_PASSWORD", "not-a-real-password")
 os.environ["ENVIRONMENT"] = "test"
+# Тесты никогда не должны обращаться к платному DeepSeek и тратить кредиты.
+os.environ["DEEPSEEK_API_KEY"] = ""
+os.environ["AI_TEACHER_API_KEY"] = ""
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
