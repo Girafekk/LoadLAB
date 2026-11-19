@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+import threading
+import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -25,6 +27,9 @@ from app.services import weak_topics_service
 from app.services.course_service import published_lesson
 
 MAX_CONTEXT = 6_000
+AI_DEADLINE_SECONDS = 35
+AI_MAX_CONCURRENT = 5
+_ai_slots = threading.BoundedSemaphore(AI_MAX_CONCURRENT)
 
 
 class AiTeacherNotFoundError(Exception):
@@ -215,7 +220,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def _external_answer(
-    lesson: Lesson, question: str, mode: str, previous: str | None
+    lesson: Lesson, question: str, mode: str, previous: str | None, timeout: float = 30
 ) -> tuple[str, str] | None:
     config = _provider_config()
     if config is None:
@@ -265,7 +270,7 @@ def _external_answer(
     )
     try:
         opener = urllib.request.build_opener(_NoRedirect())
-        with opener.open(request, timeout=30) as response:
+        with opener.open(request, timeout=max(1, timeout)) as response:
             body = json.loads(response.read(200_000).decode())
         content = body.get("choices", [{}])[0].get("message", {}).get("content")
         if not isinstance(content, str):
@@ -278,6 +283,7 @@ def _external_answer(
 
 
 def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
+    deadline = time.monotonic() + AI_DEADLINE_SECONDS
     lesson = published_lesson(db, lesson_id, include_blocks=True)
     if lesson is None:
         raise AiTeacherNotFoundError
@@ -293,7 +299,16 @@ def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
     else:
         write_db = db
     try:
-        external = _external_answer(lesson, question, mode, previous)
+        external = None
+        remaining = deadline - time.monotonic()
+        slot_acquired = remaining > 0 and _ai_slots.acquire(timeout=min(0.5, remaining))
+        if slot_acquired:
+            try:
+                remaining = deadline - time.monotonic()
+                if remaining > 0:
+                    external = _external_answer(lesson, question, mode, previous, timeout=remaining)
+            finally:
+                _ai_slots.release()
         if external is not None:
             answer, provider = external
         else:

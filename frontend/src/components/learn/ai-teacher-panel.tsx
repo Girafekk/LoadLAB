@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { aiContent as t } from "@/content/trainers";
@@ -15,12 +15,18 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const historyRequestId = useRef(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    const requestId = ++historyRequestId.current;
     fetchAiHistory(lessonId, controller.signal)
-      .then(setHistory)
-      .catch(() => setHistory([]));
+      .then((data) => {
+        if (historyRequestId.current === requestId) setHistory(data);
+      })
+      .catch(() => {
+        if (historyRequestId.current === requestId) setHistory([]);
+      });
     fetchAiStatus(controller.signal)
       .then(setAiStatus)
       .catch(() => setAiStatus(null));
@@ -38,7 +44,9 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
       setAnswer(result);
       setLastQuestion(trimmed);
       setQuestion("");
-      setHistory(await fetchAiHistory(lessonId));
+      const requestId = ++historyRequestId.current;
+      const freshHistory = await fetchAiHistory(lessonId);
+      if (historyRequestId.current === requestId) setHistory(freshHistory);
     } catch (caught) {
       setError(
         caught instanceof ApiError && caught.status === 429
@@ -64,7 +72,9 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
         <p className="mt-2 text-xs font-medium text-brand">
           {aiStatus.provider === "deepseek"
             ? `${t.providerDeepSeek}${aiStatus.model ? ` · ${t.model} ${aiStatus.model}` : ""}`
-            : t.providerLocal}
+            : aiStatus.external
+              ? t.providerLlm
+              : t.providerLocal}
         </p>
       ) : null}
 

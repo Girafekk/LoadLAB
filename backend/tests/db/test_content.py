@@ -188,6 +188,41 @@ def test_refresh_keeps_quiz_publication_flag(db_session):
     assert recreated.is_published is False
 
 
+def test_seed_content_keeps_lesson_when_moved_to_another_module(db_session):
+    seed_curriculum(db_session)
+    seed_content(db_session)
+    db_session.commit()
+    lessons = list(db_session.scalars(select(Lesson).order_by(Lesson.id)))
+    first = lessons[0]
+    original_title = first.title
+    original_key = first.content_key
+    modules = list(db_session.scalars(select(Module).order_by(Module.id)))
+    destination = modules[1]
+    new_position = (
+        db_session.scalar(
+            select(func.max(Lesson.position)).where(Lesson.module_id == destination.id)
+        )
+        or 0
+    ) + 1
+    first.module_id = destination.id
+    first.position = new_position
+    db_session.commit()
+
+    seed_curriculum(db_session)
+    seed_content(db_session)
+    db_session.commit()
+    db_session.expire_all()
+
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 60
+    moved = db_session.get(Lesson, first.id)
+    assert moved is not None
+    assert moved.module_id == destination.id
+    assert moved.content_key == original_key
+    assert moved.title == original_title
+    assert moved.blocks
+    assert moved.quiz is not None
+
+
 def test_refresh_requires_explicit_confirmation(db_session):
     seed_curriculum(db_session)
     seed_content(db_session)

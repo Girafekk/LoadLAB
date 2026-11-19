@@ -273,6 +273,11 @@ def _unsafe_sql(query: str) -> str | None:
     return None
 
 
+def _set_pg_timeout(db: Session, deadline: float) -> None:
+    remaining_ms = max(1, int((deadline - time.monotonic()) * 1000))
+    db.execute(text(f"SET LOCAL statement_timeout = '{remaining_ms}ms'"))
+
+
 def _sqlite_sandbox(db: Session, deadline: float) -> sqlite3.Connection:
     """Создаёт песочницу и закрывает её при любой ошибке подготовки."""
     connection = sqlite3.connect(":memory:")
@@ -301,14 +306,15 @@ def _populate_sandbox(
             is_published INTEGER
         );
         """)
-    db.execute(text("SET LOCAL statement_timeout = '1500ms'"))
     if time.monotonic() > deadline:
         raise TimeoutError
+    _set_pg_timeout(db, deadline)
     courses = list(
         db.scalars(select(Course).where(Course.is_published.is_(True)).limit(MAX_SANDBOX_ROWS))
     )
     if len(courses) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
         raise TimeoutError
+    _set_pg_timeout(db, deadline)
     modules = list(
         db.scalars(
             select(Module).join(Course).where(Course.is_published.is_(True)).limit(MAX_SANDBOX_ROWS)
@@ -316,6 +322,7 @@ def _populate_sandbox(
     )
     if len(modules) >= MAX_SANDBOX_ROWS or time.monotonic() > deadline:
         raise TimeoutError
+    _set_pg_timeout(db, deadline)
     lessons = list(
         db.scalars(
             select(Lesson)

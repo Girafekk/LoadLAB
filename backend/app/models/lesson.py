@@ -29,7 +29,7 @@ class Lesson(TimestampMixin, Base):
     __tablename__ = "lessons"
     __table_args__ = (
         UniqueConstraint("module_id", "position"),
-        UniqueConstraint("module_id", "content_key"),
+        UniqueConstraint("content_key"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)

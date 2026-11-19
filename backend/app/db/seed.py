@@ -69,16 +69,9 @@ def seed_curriculum(session: Session, data: CourseData = COURSE) -> SeedResult:
 
         for lesson_position, lesson_title in enumerate(module_data.lessons, start=1):
             content_key = f"w{module_position}-l{lesson_position}"
-            # Сначала ищем по неизменяемому ключу: перестановка урока не должна
-            # приводить к созданию дубля или конфликту уникального ключа.
-            if (
-                session.scalar(
-                    select(Lesson).where(
-                        Lesson.module_id == module.id, Lesson.content_key == content_key
-                    )
-                )
-                is not None
-            ):
+            # Ключ глобальный для курса: перенос урока в другой модуль не
+            # должен создавать дубль в исходном модуле.
+            if session.scalar(select(Lesson).where(Lesson.content_key == content_key)) is not None:
                 continue
             # Старый урок без ключа можно привязать только по названию.
             legacy = session.scalar(

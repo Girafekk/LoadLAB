@@ -107,12 +107,7 @@ def seed_content(
             by_title.pop(duplicated, None)
         for content_position, data in enumerate(week, start=1):
             content_key = f"w{module_index + 1}-l{content_position}"
-            lesson = session.scalar(
-                select(Lesson).where(
-                    Lesson.module_id == module.id,
-                    Lesson.content_key == content_key,
-                )
-            )
+            lesson = session.scalar(select(Lesson).where(Lesson.content_key == content_key))
             if lesson is None:
                 # Совместимость с уроками, созданными до появления content_key.
                 lesson = by_title.get(data["title"])
