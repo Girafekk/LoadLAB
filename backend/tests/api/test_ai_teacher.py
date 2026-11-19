@@ -76,10 +76,13 @@ def test_provider_prefers_deepseek(monkeypatch):
     assert status.external is True
     assert ai_teacher_service._safe_endpoint("http://api.deepseek.com", "deepseek") is None
     assert ai_teacher_service._safe_endpoint("https://evil.example", "deepseek") is None
+    assert ai_teacher_service._safe_endpoint("https://api.deepseek.com:abc", "deepseek") is None
     assert (
         ai_teacher_service._safe_endpoint("https://api.deepseek.com/v1", "deepseek")
         == "https://api.deepseek.com/v1/chat/completions"
     )
+    assert ai_teacher_service._sanitize_answer("текст\x00с NUL") == "текстс NUL"
+    assert ai_teacher_service._sanitize_answer("**Жирный** текст") == "Жирный текст"
 
 
 def test_ai_answers_from_lesson_and_stores_history(api_client, db_session):

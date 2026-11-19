@@ -8,7 +8,7 @@ from app.db.content.builder import build_blocks
 from app.db.content_loader import seed_content
 from app.db.curriculum_data import COURSE
 from app.db.seed import seed_curriculum
-from app.models import Course, Lesson, LessonBlock, Quiz, QuizQuestion
+from app.models import Course, Lesson, LessonBlock, Module, Quiz, QuizQuestion
 
 
 def test_content_covers_all_lessons_and_quizzes():
@@ -131,6 +131,41 @@ def test_seed_content_is_idempotent(db_session):
     assert second.lessons_filled == 0
     assert second.quizzes_created == 0
     assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 840
+
+
+def test_loader_backfills_keys_by_title_after_reorder(db_session):
+    seed_curriculum(db_session)
+    seed_content(db_session)
+    db_session.commit()
+    module_id = db_session.scalar(select(Module.id).order_by(Module.id))
+    lessons = list(
+        db_session.scalars(
+            select(Lesson).where(Lesson.module_id == module_id).order_by(Lesson.position)
+        )
+    )
+    first, second = lessons[0], lessons[1]
+    first_position, second_position = first.position, second.position
+    first_title, second_title = first.title, second.title
+    for lesson in lessons:
+        lesson.content_key = None
+    first.position = 0
+    db_session.flush()
+    second.position = first_position
+    db_session.flush()
+    first.position = second_position
+    db_session.commit()
+
+    seed_content(db_session)
+    db_session.commit()
+    db_session.expire_all()
+
+    first_after = db_session.get(Lesson, first.id)
+    second_after = db_session.get(Lesson, second.id)
+    assert first_after is not None and second_after is not None
+    assert first_after.title == first_title
+    assert second_after.title == second_title
+    assert first_after.content_key == "w1-l1"
+    assert second_after.content_key == "w1-l2"
 
 
 def test_refresh_requires_explicit_confirmation(db_session):

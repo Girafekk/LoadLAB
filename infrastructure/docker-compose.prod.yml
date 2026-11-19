@@ -63,6 +63,7 @@ services:
       AI_TEACHER_BASE_URL: ${AI_TEACHER_BASE_URL:-}
       AI_TEACHER_API_KEY: ${AI_TEACHER_API_KEY:-}
       AI_TEACHER_MODEL: ${AI_TEACHER_MODEL:-gpt-4o-mini}
+      AI_TEACHER_ALLOWED_HOSTS: ${AI_TEACHER_ALLOWED_HOSTS:-api.openai.com}
     ports:
       # Напрямую наружу не нужен, но порт полезен для проверок и отладки.
       - "127.0.0.1:${PROD_BACKEND_PORT:-18000}:8000"

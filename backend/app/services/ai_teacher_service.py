@@ -167,10 +167,15 @@ def provider_status() -> AiStatus:
 
 def _safe_endpoint(base_url: str, provider: str) -> str | None:
     """Разрешает только HTTPS и доверенный хост, без редиректов и чужих портов."""
-    parsed = urlparse(base_url)
-    if parsed.scheme != "https" or not parsed.hostname:
+    try:
+        parsed = urlparse(base_url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
         return None
-    if parsed.port not in (None, 443):
+    if parsed.scheme != "https" or not hostname:
+        return None
+    if port not in (None, 443):
         return None
     if provider == "deepseek":
         allowed = {"api.deepseek.com"}
@@ -180,9 +185,19 @@ def _safe_endpoint(base_url: str, provider: str) -> str | None:
             for host in get_settings().ai_teacher_allowed_hosts.split(",")
             if host.strip()
         }
-    if parsed.hostname.lower() not in allowed:
+    if hostname.lower() not in allowed:
         return None
     return base_url.rstrip("/") + "/chat/completions"
+
+
+def _sanitize_answer(answer: str) -> str:
+    """Убирает NUL, управляющие символы и простую Markdown-разметку."""
+    cleaned = "".join(
+        char for char in answer if char in "\n\t" or not (ord(char) < 32 or ord(char) == 127)
+    )
+    cleaned = cleaned.replace("**", "")
+    cleaned = re.sub(r"(?m)^#{1,6}\s*", "", cleaned)
+    return cleaned.strip()[:10_000]
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -267,7 +282,7 @@ def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
     else:
         answer = _local_answer(lesson, question, mode, previous)
         provider = "local"
-    answer = answer[:10_000]
+    answer = _sanitize_answer(answer)
     db.add(
         AiTeacherMessage(
             user_id=user.id,
@@ -277,7 +292,11 @@ def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
             mode=mode,
         )
     )
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # Ответ уже получен; сбой записи истории не должен превращаться в 500.
+        db.rollback()
     return AiAnswer(answer=answer, mode=mode, provider=provider, lesson_id=lesson.id)
 
 

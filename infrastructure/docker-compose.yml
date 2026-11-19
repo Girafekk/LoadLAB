@@ -55,6 +55,7 @@ services:
       AI_TEACHER_BASE_URL: ${AI_TEACHER_BASE_URL:-}
       AI_TEACHER_API_KEY: ${AI_TEACHER_API_KEY:-}
       AI_TEACHER_MODEL: ${AI_TEACHER_MODEL:-gpt-4o-mini}
+      AI_TEACHER_ALLOWED_HOSTS: ${AI_TEACHER_ALLOWED_HOSTS:-api.openai.com}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8001}:8000"
     volumes:

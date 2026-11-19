@@ -273,8 +273,18 @@ def _unsafe_sql(query: str) -> str | None:
 
 
 def _sqlite_sandbox(db: Session, deadline: float) -> sqlite3.Connection:
-    """Копия только опубликованных учебных таблиц; без БД приложения."""
+    """Создаёт песочницу и закрывает её при любой ошибке подготовки."""
     connection = sqlite3.connect(":memory:")
+    try:
+        return _populate_sandbox(connection, db, deadline)
+    except Exception:
+        connection.close()
+        raise
+
+
+def _populate_sandbox(
+    connection: sqlite3.Connection, db: Session, deadline: float
+) -> sqlite3.Connection:
     connection.executescript(
         """
         CREATE TABLE courses (
@@ -329,7 +339,6 @@ def _sqlite_sandbox(db: Session, deadline: float) -> sqlite3.Connection:
         ],
     )
     if time.monotonic() > deadline:
-        connection.close()
         raise TimeoutError
     connection.commit()
     connection.execute("PRAGMA query_only = ON")
@@ -367,7 +376,6 @@ def _sqlite_sandbox(db: Session, deadline: float) -> sqlite3.Connection:
         return sqlite3.SQLITE_DENY
 
     connection.set_authorizer(authorizer)
-    deadline = time.monotonic() + 2
     connection.set_progress_handler(
         lambda: 1 if time.monotonic() > deadline else 0,
         10_000,
@@ -395,25 +403,45 @@ def run_sql(db: Session, exercise_id: str, query: str) -> SqlResult:
     try:
         result = connection.execute(f"SELECT * FROM ({query}) AS trainer_result LIMIT 50")
         columns = [column[0] for column in result.description or []]
-        rows = [[value for value in row] for row in result.fetchall()]
-    except sqlite3.Error:
+        rows = []
+        total_chars = 0
+        while len(rows) < 50:
+            row = result.fetchone()
+            if row is None:
+                break
+            rows.append([value for value in row])
+            total_chars += sum(len(str(value)) for value in row)
+            if total_chars > 100_000:
+                return SqlResult(
+                    columns=[],
+                    rows=[],
+                    correct=False,
+                    feedback="Результат слишком большой для тренажёра.",
+                )
+            if time.monotonic() > deadline:
+                return SqlResult(
+                    columns=[],
+                    rows=[],
+                    correct=False,
+                    feedback="Запрос выполнялся слишком долго.",
+                )
+    except sqlite3.Error as error:
+        timed_out = "interrupt" in str(error).lower()
         return SqlResult(
             columns=[],
             rows=[],
             correct=False,
-            feedback="Запрос не выполнился или выполнялся слишком долго.",
+            feedback=(
+                "Запрос выполнялся слишком долго."
+                if timed_out
+                else "Запрос не выполнился. Проверьте названия таблиц и столбцов."
+            ),
         )
     finally:
         connection.close()
-    if sum(len(str(value)) for row in rows for value in row) > 100_000:
-        return SqlResult(
-            columns=[],
-            rows=[],
-            correct=False,
-            feedback="Результат слишком большой для тренажёра.",
-        )
     first = str(rows[0][0]) if rows and rows[0] else ""
-    correct = first.strip() == exercise["expected"]
+    shape_ok = len(rows) == 1 and len(rows[0]) == 1
+    correct = shape_ok and first.strip() == exercise["expected"]
     feedback = (
         "Верно."
         if correct
@@ -435,6 +463,21 @@ def _resolve(path: str, cwd: str) -> str:
         return "/" + "/".join(parts)
     parts = [part for part in (cwd + "/" + path).split("/") if part]
     return "/" + "/".join(parts)
+
+
+def _ls(path: str) -> str:
+    prefix = path.rstrip("/") + "/"
+    children: set[str] = set()
+    for file_path in FILES:
+        if file_path.startswith(prefix):
+            rest = file_path[len(prefix) :]
+            children.add(rest.split("/", 1)[0])
+    for directory in ROOT_DIRS:
+        if directory.startswith(prefix) and directory != path.rstrip("/"):
+            rest = directory[len(prefix) :]
+            if rest:
+                children.add(rest.split("/", 1)[0])
+    return "\n".join(sorted(children))
 
 
 def run_linux(exercise_id: str, command: str, cwd: str = "/srv/app") -> LinuxResult:
@@ -461,11 +504,7 @@ def run_linux(exercise_id: str, command: str, cwd: str = "/srv/app") -> LinuxRes
                 output="", cwd=cwd, correct=False, feedback="Такой папки нет в тренажёре"
             )
     elif name == "ls":
-        output = (
-            "\n".join(sorted(FILES))
-            if not args
-            else "\n".join(key for key in FILES if _resolve(args[0], cwd) in key)
-        )
+        output = _ls(_resolve(args[0], cwd) if args else cwd)
     elif name == "cat" and args:
         output = FILES.get(_resolve(args[0], cwd), "Нет такого файла")
     elif name == "grep" and len(args) >= 2:
@@ -494,7 +533,7 @@ def run_linux(exercise_id: str, command: str, cwd: str = "/srv/app") -> LinuxRes
         and name == exercise["command"]
         and (
             "expected_lines" not in exercise
-            or len(output.splitlines()) >= exercise["expected_lines"]
+            or len(output.splitlines()) == exercise["expected_lines"]
         )
     )
     feedback = "Верно." if correct else f"Ожидается вывод, содержащий: {exercise['expected']}."

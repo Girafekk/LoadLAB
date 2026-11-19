@@ -160,6 +160,15 @@ def test_sql_trainer_runs_safe_select_and_rejects_writes(api_client, db_session)
     assert like.status_code == 200
     assert like.json()["rows"]
 
+    wrong_shape = api_client.post(
+        "/api/v1/trainers/sql/run",
+        json={
+            "exercise_id": "sql-course",
+            "query": "SELECT title FROM lessons",
+        },
+    )
+    assert wrong_shape.json()["correct"] is False
+
     heavy = api_client.post(
         "/api/v1/trainers/sql/run",
         json={
@@ -173,6 +182,7 @@ def test_sql_trainer_runs_safe_select_and_rejects_writes(api_client, db_session)
     )
     assert heavy.json()["correct"] is False
     assert heavy.json()["rows"] == []
+    assert "слишком долго" in heavy.json()["feedback"]
 
 
 def test_sql_sandbox_excludes_drafts(api_client, db_session):

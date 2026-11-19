@@ -96,7 +96,15 @@ def seed_content(
         if week is None:
             raise RuntimeError(f"Нет контента для модуля {module.position}")
 
-        by_title = {lesson.title: lesson for lesson in module.lessons}
+        by_title: dict[str, Lesson] = {}
+        duplicates: set[str] = set()
+        for existing in module.lessons:
+            if existing.title in by_title:
+                duplicates.add(existing.title)
+            else:
+                by_title[existing.title] = existing
+        for duplicated in duplicates:
+            by_title.pop(duplicated, None)
         for content_position, data in enumerate(week, start=1):
             content_key = f"w{module_index + 1}-l{content_position}"
             lesson = session.scalar(

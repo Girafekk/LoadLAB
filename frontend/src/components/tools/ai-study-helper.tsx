@@ -10,26 +10,38 @@ import { fetchAiCheatsheet, fetchAiRecommendations } from "@/lib/api";
 import type { AiRecommendation, CheatsheetSuggestion } from "@/lib/ai-types";
 
 export function AiStudyHelper() {
-  const { status } = useAuth();
+  const { status, user, version } = useAuth();
+  const owner = user ? `${user.id}:${version}` : null;
   const [recommendations, setRecommendations] = useState<AiRecommendation[]>([]);
   const [cheatsheet, setCheatsheet] = useState<CheatsheetSuggestion | null>(null);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [cheatsheetOwner, setCheatsheetOwner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated" || owner === null) return;
     const controller = new AbortController();
     fetchAiRecommendations(controller.signal)
-      .then(setRecommendations)
-      .catch(() => setRecommendations([]));
+      .then((data) => {
+        setRecommendations(data);
+        setLoadedFor(owner);
+      })
+      .catch(() => {
+        setRecommendations([]);
+        setLoadedFor(owner);
+      });
     return () => controller.abort();
-  }, [status]);
+  }, [status, owner]);
 
   async function suggest() {
+    if (owner === null) return;
     setError(null);
     setBusy(true);
     try {
-      setCheatsheet(await fetchAiCheatsheet());
+      const data = await fetchAiCheatsheet();
+      setCheatsheet(data);
+      setCheatsheetOwner(owner);
     } catch {
       setError(t.error);
     } finally {
@@ -37,16 +49,18 @@ export function AiStudyHelper() {
     }
   }
 
-  if (status !== "authenticated") return null;
+  if (status !== "authenticated" || owner === null) return null;
+  const visibleRecommendations = loadedFor === owner ? recommendations : [];
+  const visibleCheatsheet = cheatsheetOwner === owner ? cheatsheet : null;
 
   return (
     <section className="rounded-xl border bg-card p-5">
       <h2 className="text-lg font-semibold">{t.recommendations}</h2>
-      {recommendations.length === 0 ? (
+      {visibleRecommendations.length === 0 ? (
         <p className="mt-2 text-sm text-muted-foreground">{t.noRecommendations}</p>
       ) : (
         <ul className="mt-2 space-y-1 text-sm">
-          {recommendations.map((item) => (
+          {visibleRecommendations.map((item) => (
             <li key={item.lesson_id}>
               <Link
                 href={`/learn/lessons/${item.lesson_id}`}
@@ -67,10 +81,12 @@ export function AiStudyHelper() {
           {error}
         </p>
       ) : null}
-      {cheatsheet ? (
+      {visibleCheatsheet ? (
         <div className="mt-3 rounded-lg border bg-surface p-3 text-sm">
-          <p className="font-medium">{cheatsheet.title}</p>
-          <p className="mt-1 whitespace-pre-line text-muted-foreground">{cheatsheet.content}</p>
+          <p className="font-medium">{visibleCheatsheet.title}</p>
+          <p className="mt-1 whitespace-pre-line text-muted-foreground">
+            {visibleCheatsheet.content}
+          </p>
         </div>
       ) : null}
     </section>
