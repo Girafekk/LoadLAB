@@ -425,7 +425,7 @@ frontend (lint, typecheck, build) на push и pull request.
 - Внешний AI получает обезличенный текст; mock хранит снимок вопроса и критериев,
   сдача идемпотентна по answer_id, список прохождений и продолжение доступны.
 - Миграции: `2c25349b0167` (interview_sources/questions), `376510131975`
-  (mock_interviews/answers). Тестов: backend 208, frontend сборка зелёная.
+  (mock_interviews/answers). Тестов: backend 210, frontend сборка зелёная.
 
 ## 4. Принятые решения
 
