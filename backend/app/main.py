@@ -16,6 +16,52 @@ from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 
 
+class UploadLimitMiddleware:
+    """Ограничивает фактические байты загрузки до multipart-парсера."""
+
+    def __init__(self, app, limit: int = 11 * 1024 * 1024) -> None:
+        self.app = app
+        self.limit = limit
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not scope["path"].endswith("/admin/interview/sources"):
+            await self.app(scope, receive, send)
+            return
+        if scope["method"] != "POST":
+            await self.app(scope, receive, send)
+            return
+        received = 0
+
+        async def limited_receive():
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.limit:
+                    raise ValueError("upload_too_large")
+            return message
+
+        try:
+            await self.app(scope, limited_receive, send)
+        except ValueError:
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 413,
+                    "headers": [(b"content-type", b"application/json")],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": (
+                        b'{"error":{"code":"file_too_large",'
+                        b'"message":"File is too large","details":null}}'
+                    ),
+                }
+            )
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     logging.basicConfig(
@@ -33,6 +79,7 @@ def create_app() -> FastAPI:
         openapi_url=f"{settings.api_v1_prefix}/openapi.json",
     )
 
+    app.add_middleware(UploadLimitMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

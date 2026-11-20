@@ -19,6 +19,7 @@ def generate_answers(
     batch_size: int = 10,
     ids: list[int] | None = None,
     force: bool = False,
+    allow_external: bool = False,
 ) -> dict[str, int]:
     query = select(InterviewQuestion).order_by(InterviewQuestion.id)
     if not force:
@@ -29,6 +30,8 @@ def generate_answers(
         query = query.limit(limit)
     questions = list(db.scalars(query))
     records = [(item.id, item.text, item.topic or "") for item in questions]
+    if not allow_external:
+        return {"generated": 0, "fallback": len(records), "total": len(records)}
     bind = db.get_bind()
     separate = isinstance(bind, Engine)
     if separate:

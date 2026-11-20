@@ -44,7 +44,12 @@ def submit_answer(
         )
     try:
         return mock_interview_service.submit(
-            db, user, interview_id, data.answer, answer_id=data.answer_id
+            db,
+            user,
+            interview_id,
+            data.answer,
+            answer_id=data.answer_id,
+            allow_external=data.allow_external,
         )
     except mock_interview_service.MockInterviewValidationError as error:
         raise HTTPException(status_code=422, detail=str(error)) from None

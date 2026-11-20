@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 import uuid
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -145,7 +146,11 @@ def _upload_dir() -> Path:
     return path
 
 
-def _extract_text(path: Path, suffix: str) -> str:
+def _extract_text(path: Path, suffix: str, deadline: float | None = None) -> str:
+    def check_deadline() -> None:
+        if deadline is not None and time.monotonic() > deadline:
+            raise InterviewError("Извлечение текста заняло слишком много времени")
+
     if suffix == ".txt":
         return path.read_text(encoding="utf-8", errors="replace")
     if suffix == ".pdf":
@@ -154,7 +159,11 @@ def _extract_text(path: Path, suffix: str) -> str:
         reader = PdfReader(str(path))
         if len(reader.pages) > MAX_PDF_PAGES:
             raise InterviewError("В PDF больше 200 страниц")
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        pages = []
+        for page in reader.pages:
+            check_deadline()
+            pages.append(page.extract_text() or "")
+        return "\n".join(pages)
     if suffix == ".docx":
         from docx import Document
 
@@ -162,8 +171,10 @@ def _extract_text(path: Path, suffix: str) -> str:
         if len(document.paragraphs) > MAX_DOCX_PARAGRAPHS:
             raise InterviewError("В DOCX больше 5000 абзацев")
         parts = [paragraph.text for paragraph in document.paragraphs]
+        check_deadline()
         for table in document.tables:
             for row in table.rows:
+                check_deadline()
                 parts.append(" | ".join(cell.text for cell in row.cells))
         return "\n".join(parts)
     if suffix in {".png", ".jpg", ".jpeg"}:
@@ -172,6 +183,7 @@ def _extract_text(path: Path, suffix: str) -> str:
 
         Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
         with Image.open(path) as image:
+            check_deadline()
             return pytesseract.image_to_string(image, lang="rus+eng", timeout=30)
     raise InterviewError("Неподдерживаемый формат файла")
 
@@ -299,7 +311,7 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSource:
     target = _upload_dir() / stored_name
     try:
         target.write_bytes(content)
-        text = _clean_text(_extract_text(target, suffix))
+        text = _clean_text(_extract_text(target, suffix, time.monotonic() + 30))
         if not text:
             raise InterviewError("В файле не найден текст")
     except Exception as error:

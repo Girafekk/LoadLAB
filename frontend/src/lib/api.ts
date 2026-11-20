@@ -625,13 +625,14 @@ export function deduplicateInterviewQuestions(): Promise<{ removed: number }> {
   return apiRequest<{ removed: number }>("/admin/interview/deduplicate", { method: "POST" });
 }
 
-export function generateInterviewAnswers(): Promise<{
+export function generateInterviewAnswers(allowExternal = false): Promise<{
   generated: number;
   fallback: number;
   total: number;
 }> {
+  const query = allowExternal ? "?limit=50&allow_external=true" : "?limit=50";
   return apiRequest<{ generated: number; fallback: number; total: number }>(
-    "/admin/interview/generate-answers?limit=50",
+    `/admin/interview/generate-answers${query}`,
     { method: "POST" },
   );
 }
@@ -643,11 +644,12 @@ export function startMockInterview(): Promise<MockSession> {
 export function submitMockAnswer(
   interviewId: number,
   answer: string,
-  answerId?: number,
+  answerId: number,
+  allowExternal = false,
 ): Promise<MockAnswerResult> {
   return apiRequest<MockAnswerResult>(`/mock-interviews/${interviewId}/answers`, {
     method: "POST",
-    body: answerId === undefined ? { answer } : { answer, answer_id: answerId },
+    body: { answer, answer_id: answerId, allow_external: allowExternal },
   });
 }
 

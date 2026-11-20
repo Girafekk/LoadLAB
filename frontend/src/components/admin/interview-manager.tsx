@@ -144,7 +144,7 @@ export function InterviewManager() {
     setBusyId(-3);
     setError(null);
     try {
-      const result = await generateInterviewAnswers();
+      const result = await generateInterviewAnswers(allowExternal);
       setMessage(t.answersGenerated(result.generated));
       setReloadToken((value) => value + 1);
     } catch {

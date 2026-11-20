@@ -40,11 +40,15 @@ def test_mock_interview_flow(api_client, db_session):
 
     first = api_client.post(
         f"/api/v1/mock-interviews/{body['id']}/answers",
-        json={"answer": "RPS — число запросов в секунду. Смотрю p95 и ошибки."},
+        json={
+            "answer": "RPS — число запросов в секунду. Смотрю p95 и ошибки.",
+            "answer_id": body["current"]["answer_id"],
+        },
     )
     assert first.status_code == 200
     assert first.json()["completed"] is False
-    assert first.json()["next_question"]
+    next_question = first.json()["next_question"]
+    assert next_question
 
     second = api_client.post(
         f"/api/v1/mock-interviews/{body['id']}/answers",
@@ -52,11 +56,19 @@ def test_mock_interview_flow(api_client, db_session):
             "answer": (
                 "Проверяю метрику в отчёте, сравниваю с baseline и смотрю, "
                 "не выросло ли время ответа. Добавляю пример из проекта."
-            )
+            ),
+            "answer_id": next_question["answer_id"],
         },
     )
     assert second.status_code == 200
     assert second.json()["completed"] is True
+
+    repeated = api_client.post(
+        f"/api/v1/mock-interviews/{body['id']}/answers",
+        json={"answer": "Повтор", "answer_id": next_question["answer_id"]},
+    )
+    assert repeated.status_code == 200
+    assert repeated.json()["completed"] is True
 
     report = api_client.get(f"/api/v1/mock-interviews/{body['id']}")
     assert report.status_code == 200
@@ -80,11 +92,13 @@ def test_mock_answer_rejects_empty(api_client, db_session):
     _questions(db_session, 1)
     started = api_client.post("/api/v1/mock-interviews").json()
     response = api_client.post(
-        f"/api/v1/mock-interviews/{started['id']}/answers", json={"answer": ""}
+        f"/api/v1/mock-interviews/{started['id']}/answers",
+        json={"answer": "", "answer_id": started["current"]["answer_id"]},
     )
     assert response.status_code == 422
     whitespace = api_client.post(
-        f"/api/v1/mock-interviews/{started['id']}/answers", json={"answer": "   "}
+        f"/api/v1/mock-interviews/{started['id']}/answers",
+        json={"answer": "   ", "answer_id": started["current"]["answer_id"]},
     )
     assert whitespace.status_code == 422
 
@@ -101,7 +115,10 @@ def test_mock_answer_returns_retry_after(api_client, db_session):
         assert ai_teacher_rate_limiter.reserve_attempt(key) == 0
     response = api_client.post(
         f"/api/v1/mock-interviews/{started['id']}/answers",
-        json={"answer": "Ответ достаточной длины для проверки."},
+        json={
+            "answer": "Ответ достаточной длины для проверки.",
+            "answer_id": started["current"]["answer_id"],
+        },
     )
     assert response.status_code == 429
     assert response.headers["Retry-After"]

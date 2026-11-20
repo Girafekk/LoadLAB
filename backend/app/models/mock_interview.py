@@ -47,6 +47,9 @@ class MockInterviewAnswer(Base):
         BigInteger, ForeignKey("interview_questions.id", ondelete="SET NULL"), index=True
     )
     position: Mapped[int] = mapped_column(Integer)
+    question_text: Mapped[str | None] = mapped_column(Text)
+    reference_answer: Mapped[str | None] = mapped_column(Text)
+    answer_criteria: Mapped[str | None] = mapped_column(Text)
     answer: Mapped[str | None] = mapped_column(Text)
     feedback: Mapped[str | None] = mapped_column(Text)
     score: Mapped[int | None] = mapped_column(Integer)

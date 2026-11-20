@@ -23,6 +23,7 @@ export function MockInterview() {
   const [feedback, setFeedback] = useState<{ score: number; text: string } | null>(null);
   const [report, setReport] = useState<MockReport | null>(null);
   const [busy, setBusy] = useState(false);
+  const [useAi, setUseAi] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (status === "loading") {
@@ -74,11 +75,13 @@ export function MockInterview() {
     setError(null);
     const requestOwner = owner;
     const answerId = current?.answer_id;
+    if (answerId === undefined) return;
     try {
       const result = await submitMockAnswer(
         session.id,
         answer.trim(),
         answerId,
+        useAi,
       );
       if (requestOwner === null || ownerRef.current !== requestOwner) return;
       setFeedback({ score: result.score, text: result.feedback });
@@ -128,6 +131,18 @@ export function MockInterview() {
     return (
       <div className="rounded-xl border bg-card p-6">
         <p className="max-w-2xl text-sm text-muted-foreground">{t.intro}</p>
+        <label className="mt-4 flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={useAi}
+            onChange={(event) => setUseAi(event.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            {t.useAi}
+            <span className="block text-xs text-muted-foreground">{t.useAiHint}</span>
+          </span>
+        </label>
         {error ? (
           <p role="alert" className="mt-3 text-sm text-destructive">
             {error}

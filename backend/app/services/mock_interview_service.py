@@ -36,13 +36,13 @@ class MockInterviewValidationError(MockInterviewError):
 
 
 def _question(answer: MockInterviewAnswer) -> MockQuestion | None:
-    if answer.question is None:
+    if answer.question is None and not answer.question_text:
         return None
     return MockQuestion(
         answer_id=answer.id,
         question_id=answer.question_id,
-        text=answer.question.text,
-        topic=answer.question.topic,
+        text=answer.question_text or (answer.question.text if answer.question else ""),
+        topic=answer.question.topic if answer.question else None,
         position=answer.position,
     )
 
@@ -84,6 +84,9 @@ def start(db: Session, user: User, count: int = 5) -> MockSession:
                 interview_id=interview.id,
                 question_id=question.id,
                 position=position,
+                question_text=question.text,
+                reference_answer=question.reference_answer,
+                answer_criteria=question.answer_criteria,
             )
         )
     db.commit()
@@ -144,7 +147,8 @@ def submit(
     user: User,
     interview_id: int,
     text: str,
-    answer_id: int | None = None,
+    answer_id: int,
+    allow_external: bool = False,
 ) -> MockAnswerResult:
     text = text.replace("\x00", "").strip()[:6_000]
     if not text:
@@ -159,8 +163,6 @@ def submit(
         )
         if interview is None:
             raise MockInterviewError("Собеседование не найдено")
-        if interview.status != "active":
-            raise MockInterviewError("Собеседование уже завершено")
         if answer_id is not None:
             answer = next((item for item in interview.answers if item.id == answer_id), None)
             if answer is None:
@@ -174,12 +176,18 @@ def submit(
                     next_question=_current(interview),
                 )
         else:
+            answer = None
+        if interview.status != "active":
+            raise MockInterviewError("Собеседование уже завершено")
+        if answer is None:
             answer = next((item for item in interview.answers if item.answer is None), None)
-        if answer is None or answer.question is None:
+        if answer is None or (answer.question is None and not answer.question_text):
             raise MockInterviewError("Вопросы закончились")
         answer_id = answer.id
-        question_text = answer.question.text
-        reference = answer.question.reference_answer
+        question_text = answer.question_text or (answer.question.text if answer.question else "")
+        reference = answer.reference_answer or (
+            answer.question.reference_answer if answer.question else None
+        )
         all_count = len(interview.answers)
         answered_count = sum(1 for item in interview.answers if item.answer is not None)
         bind = db.get_bind()
@@ -190,7 +198,11 @@ def submit(
         else:
             write_db = db
         try:
-            score, feedback = evaluate(question_text, text, reference)
+            score, feedback = (
+                evaluate(question_text, text, reference)
+                if allow_external
+                else _fallback_feedback(text)
+            )
             fresh = write_db.get(MockInterview, interview_id)
             if fresh is None:
                 raise MockInterviewError("Собеседование не найдено")
@@ -236,7 +248,9 @@ def get(db: Session, user: User, interview_id: int) -> MockReport:
         answers=[
             MockAnswerRead(
                 position=item.position,
-                question=item.question.text if item.question else "Вопрос удалён",
+                question=(
+                    item.question_text or (item.question.text if item.question else "Вопрос удалён")
+                ),
                 answer=item.answer,
                 feedback=item.feedback,
                 score=item.score,

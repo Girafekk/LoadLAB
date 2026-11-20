@@ -88,7 +88,7 @@ def test_reference_answers_are_filled_for_new_questions(api_client, db_session, 
             '"criteria": ["Определение", "Пример", "Ограничение"]}]'
         ),
     )
-    result = interview_answers.generate_answers(db_session, limit=1)
+    result = interview_answers.generate_answers(db_session, limit=1, allow_external=True)
     assert result["generated"] == 1
     db_session.refresh(question)
     assert question.reference_answer == "RPS — запросы в секунду."
@@ -109,7 +109,7 @@ def test_reference_answers_not_faked_without_provider(api_client, db_session, mo
         "complete_external",
         lambda *args, **kwargs: None,
     )
-    result = interview_answers.generate_answers(db_session, limit=1)
+    result = interview_answers.generate_answers(db_session, limit=1, allow_external=True)
     assert result["generated"] == 0
     assert result["fallback"] == 1
     db_session.refresh(question)

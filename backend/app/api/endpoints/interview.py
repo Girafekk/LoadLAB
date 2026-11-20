@@ -136,7 +136,8 @@ def deduplicate(
 @router.post("/generate-answers")
 def generate_answers(
     limit: int = Query(default=20, ge=1, le=50),
+    allow_external: bool = Query(default=False),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
-    return interview_answers.generate_answers(db, limit=limit)
+    return interview_answers.generate_answers(db, limit=limit, allow_external=allow_external)
