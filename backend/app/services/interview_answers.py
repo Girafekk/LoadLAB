@@ -17,12 +17,11 @@ def generate_answers(
     limit: int | None = None,
     batch_size: int = 10,
     ids: list[int] | None = None,
+    force: bool = False,
 ) -> dict[str, int]:
-    query = (
-        select(InterviewQuestion)
-        .where(InterviewQuestion.reference_answer.is_(None))
-        .order_by(InterviewQuestion.id)
-    )
+    query = select(InterviewQuestion).order_by(InterviewQuestion.id)
+    if not force:
+        query = query.where(InterviewQuestion.reference_answer.is_(None))
     if ids:
         query = query.where(InterviewQuestion.id.in_(ids))
     if limit:
@@ -31,9 +30,12 @@ def generate_answers(
     generated = 0
     failed = 0
     system = (
-        "Ты Senior Load Tester и интервьюер. Для каждого вопроса дай эталонный "
-        "ответ для Junior-кандидата и 3 критерия оценки. Верни только JSON-массив "
-        'без Markdown: [{"id": число, "answer": "3–5 предложений", '
+        "Ты Senior Load Tester и интервьюер. Пиши для начинающего специалиста "
+        "простым русским языком, как для 10 класса: короткие предложения, сначала "
+        "бытовой смысл, затем термин с расшифровкой, пример из теста и граница. "
+        "Ответ должен быть точным и достаточным для Junior-собеседования. "
+        "Для каждого вопроса верни только JSON-массив без Markdown: "
+        '[{"id": число, "answer": "3–6 коротких предложений", '
         '"criteria": ["...", "...", "..."]}]. Без персональных данных.'
     )
     for start in range(0, len(questions), batch_size):
