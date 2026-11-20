@@ -48,6 +48,7 @@ def list_sources(
 @router.post("/sources/{source_id}/analyze", response_model=AnalyzeResult)
 def analyze_source(
     source_id: int,
+    allow_external: bool = Query(default=False),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> AnalyzeResult:
@@ -55,7 +56,7 @@ def analyze_source(
     if source is None:
         raise HTTPException(status_code=404, detail="Источник не найден")
     try:
-        return interview_service.analyze_source(db, source)
+        return interview_service.analyze_source(db, source, allow_external=allow_external)
     except interview_service.InterviewError as error:
         raise HTTPException(status_code=422, detail=str(error)) from None
 

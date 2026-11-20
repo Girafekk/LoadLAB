@@ -581,8 +581,12 @@ export function fetchInterviewSources(signal?: AbortSignal): Promise<InterviewSo
   return apiRequest<InterviewSource[]>("/admin/interview/sources", { signal });
 }
 
-export function analyzeInterviewSource(sourceId: number): Promise<AnalyzeResult> {
-  return apiRequest<AnalyzeResult>(`/admin/interview/sources/${sourceId}/analyze`, {
+export function analyzeInterviewSource(
+  sourceId: number,
+  allowExternal = false,
+): Promise<AnalyzeResult> {
+  const query = allowExternal ? "?allow_external=true" : "";
+  return apiRequest<AnalyzeResult>(`/admin/interview/sources/${sourceId}/analyze${query}`, {
     method: "POST",
   });
 }
@@ -636,10 +640,14 @@ export function startMockInterview(): Promise<MockSession> {
   return apiRequest<MockSession>("/mock-interviews", { method: "POST" });
 }
 
-export function submitMockAnswer(interviewId: number, answer: string): Promise<MockAnswerResult> {
+export function submitMockAnswer(
+  interviewId: number,
+  answer: string,
+  answerId?: number,
+): Promise<MockAnswerResult> {
   return apiRequest<MockAnswerResult>(`/mock-interviews/${interviewId}/answers`, {
     method: "POST",
-    body: { answer },
+    body: answerId === undefined ? { answer } : { answer, answer_id: answerId },
   });
 }
 

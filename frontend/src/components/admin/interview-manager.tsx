@@ -35,6 +35,7 @@ export function InterviewManager() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [allowExternal, setAllowExternal] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -73,8 +74,7 @@ export function InterviewManager() {
       if (source.status === "error") {
         setError(source.error ?? t.uploadError);
       } else {
-        const result = await analyzeInterviewSource(source.id);
-        setMessage(t.analyzeResult(result.questions_created, result.duplicates));
+        setMessage(t.uploaded);
       }
       setReloadToken((value) => value + 1);
     } catch {
@@ -88,7 +88,7 @@ export function InterviewManager() {
     setBusyId(source.id);
     setError(null);
     try {
-      const result = await analyzeInterviewSource(source.id);
+      const result = await analyzeInterviewSource(source.id, allowExternal);
       setMessage(t.analyzeResult(result.questions_created, result.duplicates));
       setReloadToken((value) => value + 1);
     } catch {
@@ -187,6 +187,18 @@ export function InterviewManager() {
             }}
           />
           <span className="text-xs text-muted-foreground">TXT, PDF, DOCX, PNG, JPG · до 10 МБ</span>
+        </label>
+        <label className="mt-3 flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={allowExternal}
+            onChange={(event) => setAllowExternal(event.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            {t.allowExternal}
+            <span className="block text-xs text-muted-foreground">{t.allowExternalHint}</span>
+          </span>
         </label>
         {message ? (
           <p role="status" className="mt-3 text-sm text-brand">

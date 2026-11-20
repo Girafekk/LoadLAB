@@ -49,3 +49,4 @@ class MockReport(BaseModel):
 
 class MockAnswerInput(BaseModel):
     answer: str = Field(min_length=1, max_length=6_000)
+    answer_id: int | None = None

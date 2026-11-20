@@ -139,7 +139,13 @@ def _lock_for(interview_id: int) -> threading.Lock:
         return _interview_locks.setdefault(interview_id, threading.Lock())
 
 
-def submit(db: Session, user: User, interview_id: int, text: str) -> MockAnswerResult:
+def submit(
+    db: Session,
+    user: User,
+    interview_id: int,
+    text: str,
+    answer_id: int | None = None,
+) -> MockAnswerResult:
     text = text.replace("\x00", "").strip()[:6_000]
     if not text:
         raise MockInterviewValidationError("Ответ пустой")
@@ -155,7 +161,20 @@ def submit(db: Session, user: User, interview_id: int, text: str) -> MockAnswerR
             raise MockInterviewError("Собеседование не найдено")
         if interview.status != "active":
             raise MockInterviewError("Собеседование уже завершено")
-        answer = next((item for item in interview.answers if item.answer is None), None)
+        if answer_id is not None:
+            answer = next((item for item in interview.answers if item.id == answer_id), None)
+            if answer is None:
+                raise MockInterviewValidationError("Вопрос не найден")
+            if answer.answer is not None:
+                return MockAnswerResult(
+                    answer_id=answer.id,
+                    score=answer.score or 0,
+                    feedback=answer.feedback or "Ответ уже сохранён.",
+                    completed=interview.status == "completed",
+                    next_question=_current(interview),
+                )
+        else:
+            answer = next((item for item in interview.answers if item.answer is None), None)
         if answer is None or answer.question is None:
             raise MockInterviewError("Вопросы закончились")
         answer_id = answer.id

@@ -14,7 +14,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.models import Course, InterviewQuestion, InterviewSource, Lesson, Module, User
+from app.models import (
+    Course,
+    InterviewQuestion,
+    InterviewSource,
+    Lesson,
+    MockInterviewAnswer,
+    Module,
+    User,
+)
 from app.schemas.interview import (
     AnalyzeResult,
     CoverageRow,
@@ -26,6 +34,9 @@ from app.schemas.interview import (
 from app.services import ai_teacher_service
 
 MAX_BYTES = 10 * 1024 * 1024
+MAX_PDF_PAGES = 200
+MAX_DOCX_PARAGRAPHS = 5_000
+MAX_IMAGE_PIXELS = 20_000_000
 ALLOWED_SUFFIXES = {".txt", ".pdf", ".docx", ".png", ".jpg", ".jpeg"}
 QUESTION_START = re.compile(
     r"^(как|что|почему|зачем|какие|какой|какая|где|чем|сколько|расскажи|опиши|"
@@ -140,11 +151,15 @@ def _extract_text(path: Path, suffix: str) -> str:
         from pypdf import PdfReader
 
         reader = PdfReader(str(path))
+        if len(reader.pages) > MAX_PDF_PAGES:
+            raise InterviewError("В PDF больше 200 страниц")
         return "\n".join(page.extract_text() or "" for page in reader.pages)
     if suffix == ".docx":
         from docx import Document
 
         document = Document(str(path))
+        if len(document.paragraphs) > MAX_DOCX_PARAGRAPHS:
+            raise InterviewError("В DOCX больше 5000 абзацев")
         parts = [paragraph.text for paragraph in document.paragraphs]
         for table in document.tables:
             for row in table.rows:
@@ -154,8 +169,9 @@ def _extract_text(path: Path, suffix: str) -> str:
         import pytesseract
         from PIL import Image
 
+        Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
         with Image.open(path) as image:
-            return pytesseract.image_to_string(image, lang="rus+eng")
+            return pytesseract.image_to_string(image, lang="rus+eng", timeout=30)
     raise InterviewError("Неподдерживаемый формат файла")
 
 
@@ -282,33 +298,26 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSource:
     target = _upload_dir() / stored_name
     try:
         target.write_bytes(content)
-    except OSError as error:
-        raise InterviewError("Не удалось сохранить файл на сервере") from error
+        text = _clean_text(_extract_text(target, suffix))
+        if not text:
+            raise InterviewError("В файле не найден текст")
+    except Exception as error:
+        target.unlink(missing_ok=True)
+        if isinstance(error, InterviewError):
+            raise
+        raise InterviewError("Не удалось извлечь текст из файла") from error
     source = InterviewSource(
         uploaded_by=user.id,
         filename=Path(upload.filename or "material").name[:255],
         stored_name=stored_name,
-        media_type=upload.content_type or "application/octet-stream",
+        media_type=(upload.content_type or "application/octet-stream")[:120],
         size_bytes=len(content),
-        status="uploaded",
+        text=text[:500_000],
+        status="extracted",
     )
     db.add(source)
-    db.flush()
-    try:
-        text = _extract_text(target, suffix)
-        text = _clean_text(text)
-        if not text:
-            raise InterviewError("В файле не найден текст")
-        source.text = text[:500_000]
-        source.status = "extracted"
-        source.error = None
-    except Exception as error:
-        source.status = "error"
-        source.error = str(error)[:1_000]
     db.commit()
     db.refresh(source)
-    if source.status == "error":
-        raise InterviewError(source.error or "Не удалось извлечь текст")
     return source
 
 
@@ -333,11 +342,13 @@ def source_read(db: Session, source: InterviewSource) -> InterviewSourceRead:
     )
 
 
-def analyze_source(db: Session, source: InterviewSource) -> AnalyzeResult:
+def analyze_source(
+    db: Session, source: InterviewSource, allow_external: bool = False
+) -> AnalyzeResult:
     if not source.text:
         raise InterviewError("Нет извлечённого текста")
     lessons = _lesson_choices(db)
-    extracted = _ai_questions(db, source.text, lessons) or [
+    extracted = (_ai_questions(db, source.text, lessons) if allow_external else None) or [
         {"text": text, "topic": "Общее", "difficulty": "junior", "level": "base", "lesson_id": None}
         for text in _heuristic_questions(source.text)
     ]
@@ -359,7 +370,8 @@ def analyze_source(db: Session, source: InterviewSource) -> AnalyzeResult:
             select(InterviewQuestion).where(InterviewQuestion.fingerprint == fingerprint)
         )
         if existing is not None:
-            existing.occurrences += 1
+            if existing.source_id != source.id:
+                existing.occurrences += 1
             duplicates += 1
             continue
         db.add(
@@ -375,6 +387,7 @@ def analyze_source(db: Session, source: InterviewSource) -> AnalyzeResult:
                 occurrences=1,
             )
         )
+        db.flush()
         created += 1
     source.status = "analyzed"
     if len(source.text) > 120_000:
@@ -478,6 +491,15 @@ def deduplicate(db: Session, threshold: float = 0.9) -> int:
                 SequenceMatcher(None, normalized[index], normalized[other_index]).ratio()
                 < threshold
             ):
+                continue
+            used = db.scalar(
+                select(MockInterviewAnswer.id).where(
+                    MockInterviewAnswer.question_id.in_([question.id, other.id])
+                )
+            )
+            if used is not None:
+                # Не удаляем вопрос, который уже используется в прохождении:
+                # иначе активное интервью потеряет следующую позицию.
                 continue
             question.occurrences += other.occurrences
             if other.status == "approved":

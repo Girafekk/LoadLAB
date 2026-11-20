@@ -43,7 +43,9 @@ def submit_answer(
             headers={"Retry-After": str(retry_after)},
         )
     try:
-        return mock_interview_service.submit(db, user, interview_id, data.answer)
+        return mock_interview_service.submit(
+            db, user, interview_id, data.answer, answer_id=data.answer_id
+        )
     except mock_interview_service.MockInterviewValidationError as error:
         raise HTTPException(status_code=422, detail=str(error)) from None
     except mock_interview_service.MockInterviewError as error:

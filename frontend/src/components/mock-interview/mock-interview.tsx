@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,13 @@ import { ApiError, fetchMockInterview, startMockInterview, submitMockAnswer } fr
 import type { MockQuestion, MockReport, MockSession } from "@/lib/mock-interview-types";
 
 export function MockInterview() {
-  const { status, version, clearSession } = useAuth();
+  const { status, version, user, clearSession } = useAuth();
+  const owner = user ? `${user.id}:${version}` : null;
+  const ownerRef = useRef<string | null>(owner);
+  useEffect(() => {
+    ownerRef.current = owner;
+  }, [owner]);
+  const [sessionOwner, setSessionOwner] = useState<string | null>(null);
   const [session, setSession] = useState<MockSession | null>(null);
   const [current, setCurrent] = useState<MockQuestion | null>(null);
   const [answer, setAnswer] = useState("");
@@ -37,13 +43,16 @@ export function MockInterview() {
   }
 
   async function start() {
+    const requestOwner = owner;
     setBusy(true);
     setError(null);
     setReport(null);
     setFeedback(null);
     try {
       const created = await startMockInterview();
+      if (requestOwner === null || ownerRef.current !== requestOwner) return;
       setSession(created);
+      setSessionOwner(requestOwner);
       setCurrent(created.current);
       setAnswer("");
     } catch (caught) {
@@ -63,18 +72,29 @@ export function MockInterview() {
     if (!session || !answer.trim()) return;
     setBusy(true);
     setError(null);
+    const requestOwner = owner;
+    const answerId = current?.answer_id;
     try {
-      const result = await submitMockAnswer(session.id, answer.trim());
+      const result = await submitMockAnswer(
+        session.id,
+        answer.trim(),
+        answerId,
+      );
+      if (requestOwner === null || ownerRef.current !== requestOwner) return;
       setFeedback({ score: result.score, text: result.feedback });
       setAnswer("");
       setCurrent(result.next_question);
       if (result.completed) {
-        setReport(await fetchMockInterview(session.id));
+        const completedReport = await fetchMockInterview(session.id);
+        if (ownerRef.current !== requestOwner) return;
+        setReport(completedReport);
         setSession((value) => (value ? { ...value, status: "completed" } : value));
       }
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         clearSession(version);
+      } else if (caught instanceof ApiError && caught.status === 429) {
+        setError(t.tooMany);
       } else {
         setError(t.error);
       }
@@ -85,11 +105,23 @@ export function MockInterview() {
 
   function reset() {
     setSession(null);
+    setSessionOwner(null);
     setCurrent(null);
     setReport(null);
     setFeedback(null);
     setAnswer("");
     setError(null);
+  }
+
+  if (session && sessionOwner !== owner) {
+    return (
+      <div className="rounded-xl border bg-card p-6">
+        <p className="text-sm text-muted-foreground">{t.sessionChanged}</p>
+        <Button className="mt-4" onClick={reset}>
+          {t.retry}
+        </Button>
+      </div>
+    );
   }
 
   if (!session) {
