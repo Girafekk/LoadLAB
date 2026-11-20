@@ -52,7 +52,11 @@ def generate_answers(
     for start in range(0, len(records), batch_size):
         chunk = records[start : start + batch_size]
         payload = [
-            {"id": question_id, "question": privacy.anonymize(question_text), "topic": topic}
+            {
+                "id": question_id,
+                "question": privacy.anonymize(question_text),
+                "topic": privacy.anonymize(topic),
+            }
             for question_id, question_text, topic in chunk
         ]
         raw = ai_teacher_service.complete_external(

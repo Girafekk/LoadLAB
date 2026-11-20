@@ -238,7 +238,7 @@ def lesson_options(db: Session) -> list[Lesson]:
 
 
 def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[str, object]] | None:
-    lesson_list = "\n".join(f"{item.id}: {item.title}" for item in lessons)
+    lesson_list = "\n".join(f"{item.id}: {privacy.anonymize(item.title)}" for item in lessons)
     system = (
         "Ты аналитик учебного контента. Извлеки из текста вопросы собеседования "
         "на Junior Load Tester. Верни только JSON-массив без Markdown. Каждый элемент: "
@@ -386,10 +386,9 @@ def analyze_source(
             for item in _heuristic_questions(text)
         ]
         # Повторный разбор источника не должен накапливать его же дубли.
-        write_db.execute(
-            InterviewQuestion.__table__.delete().where(
-                InterviewQuestion.source_id == source_id,
-                InterviewQuestion.status == "proposed",
+        old_ids = set(
+            write_db.scalars(
+                select(InterviewQuestion.id).where(InterviewQuestion.source_id == source_id)
             )
         )
         write_db.execute(
@@ -439,14 +438,18 @@ def analyze_source(
                 )
             )
             touched.add(question.id)
-        for question_id in touched:
+        for question_id in touched | old_ids:
             total = write_db.scalar(
                 select(func.coalesce(func.sum(InterviewQuestionSource.occurrences), 0)).where(
                     InterviewQuestionSource.question_id == question_id
                 )
             )
             question = write_db.get(InterviewQuestion, question_id)
-            if question is not None:
+            if question is None:
+                continue
+            if int(total or 0) == 0 and question.status == "proposed":
+                write_db.delete(question)
+            else:
                 question.occurrences = int(total or 0)
         source_row = write_db.get(InterviewSource, source_id)
         if source_row is not None:

@@ -213,6 +213,14 @@ def test_duplicate_question_across_sources(api_client, db_session, tmp_path, mon
     assert len(matching) == 1
     assert matching[0].occurrences == 2
 
+    api_client.post(f"/api/v1/admin/interview/sources/{first.json()['id']}/analyze")
+    db_session.expire_all()
+    matching = [
+        item for item in db_session.scalars(select(InterviewQuestion)).all() if "RPS" in item.text
+    ]
+    assert len(matching) == 1
+    assert matching[0].occurrences == 2
+
 
 def test_upload_rejects_empty_and_bad_format(api_client, db_session, tmp_path, monkeypatch):
     _admin(api_client, db_session)

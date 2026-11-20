@@ -36,6 +36,7 @@ export function InterviewManager() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [allowExternal, setAllowExternal] = useState(false);
+  const [allowAnswersExternal, setAllowAnswersExternal] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -144,7 +145,7 @@ export function InterviewManager() {
     setBusyId(-3);
     setError(null);
     try {
-      const result = await generateInterviewAnswers(allowExternal);
+      const result = await generateInterviewAnswers(allowAnswersExternal);
       setMessage(t.answersGenerated(result.generated));
       setReloadToken((value) => value + 1);
     } catch {
@@ -197,6 +198,18 @@ export function InterviewManager() {
           />
           <span>
             {t.allowExternal}
+            <span className="block text-xs text-muted-foreground">{t.allowExternalHint}</span>
+          </span>
+        </label>
+        <label className="mt-2 flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={allowAnswersExternal}
+            onChange={(event) => setAllowAnswersExternal(event.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            {t.allowAnswersExternal}
             <span className="block text-xs text-muted-foreground">{t.allowExternalHint}</span>
           </span>
         </label>

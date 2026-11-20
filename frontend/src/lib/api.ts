@@ -150,8 +150,9 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     const payload = await response.json().catch(() => null);
     const error = payload?.error;
     if (response.status === 409 && typeof window !== "undefined") {
-      // Экран устарел: в другой вкладке сменился ученик. Провайдер авторизации
-      // перечитает /auth/me, а личные компоненты пересоздадутся по новому ключу.
+      // Сначала снимаем устаревший заголовок: иначе /auth/me повторит его
+      // и снова получит 409.
+      expectedUserId = null;
       window.dispatchEvent(new Event("loadlab:session-changed"));
     }
     throw new ApiError(

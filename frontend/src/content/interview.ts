@@ -7,6 +7,7 @@ export const interviewContent = {
   uploading: "Загружаем…",
   uploaded: "Файл загружен. Проверьте текст и нажмите «Разобрать».",
   allowExternal: "Разрешить отправку текста внешнему AI (DeepSeek)",
+  allowAnswersExternal: "Разрешить генерацию эталонов через внешний AI",
   allowExternalHint:
     "По умолчанию разбор локальный. Включайте только если в материале нет персональных данных.",
   uploadError: "Не удалось загрузить файл.",
