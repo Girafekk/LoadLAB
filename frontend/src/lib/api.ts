@@ -656,3 +656,7 @@ export function submitMockAnswer(
 export function fetchMockInterview(interviewId: number): Promise<MockReport> {
   return apiRequest<MockReport>(`/mock-interviews/${interviewId}`);
 }
+
+export function fetchMockInterviews(): Promise<MockSession[]> {
+  return apiRequest<MockSession[]>("/mock-interviews");
+}

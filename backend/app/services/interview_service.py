@@ -35,7 +35,7 @@ from app.schemas.interview import (
     InterviewSourceRead,
     TopicCount,
 )
-from app.services import ai_teacher_service
+from app.services import ai_teacher_service, privacy
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 200
@@ -252,7 +252,8 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
     for chunk in chunks[:10]:
         raw = ai_teacher_service.complete_external(
             system,
-            f"Список уроков курса (id: название):\n{lesson_list}\n\nТекст материала:\n{chunk}",
+            f"Список уроков курса (id: название):\n{lesson_list}\n\nТекст материала:\n"
+            f"{privacy.anonymize(chunk)}",
             timeout=60,
         )
         if not raw:

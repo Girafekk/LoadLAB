@@ -4,7 +4,7 @@ from app.models import InterviewQuestion
 from tests.api.helpers import register
 
 
-def _questions(db_session, count: int = 2) -> None:
+def _questions(db_session, count: int = 5) -> None:
     for index in range(count):
         db_session.add(
             InterviewQuestion(
@@ -35,37 +35,30 @@ def test_mock_interview_flow(api_client, db_session):
     assert started.status_code == 201
     body = started.json()
     assert body["status"] == "active"
-    assert body["total"] == 2
+    assert body["total"] == 5
     assert body["current"]["text"]
 
-    first = api_client.post(
-        f"/api/v1/mock-interviews/{body['id']}/answers",
-        json={
-            "answer": "RPS — число запросов в секунду. Смотрю p95 и ошибки.",
-            "answer_id": body["current"]["answer_id"],
-        },
-    )
-    assert first.status_code == 200
-    assert first.json()["completed"] is False
-    next_question = first.json()["next_question"]
-    assert next_question
-
-    second = api_client.post(
-        f"/api/v1/mock-interviews/{body['id']}/answers",
-        json={
-            "answer": (
-                "Проверяю метрику в отчёте, сравниваю с baseline и смотрю, "
-                "не выросло ли время ответа. Добавляю пример из проекта."
-            ),
-            "answer_id": next_question["answer_id"],
-        },
-    )
-    assert second.status_code == 200
-    assert second.json()["completed"] is True
+    current = body["current"]
+    for index in range(5):
+        response = api_client.post(
+            f"/api/v1/mock-interviews/{body['id']}/answers",
+            json={
+                "answer": (f"Ответ {index}: называю главное, привожу пример и границу."),
+                "answer_id": current["answer_id"],
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        if index < 4:
+            assert payload["completed"] is False
+            current = payload["next_question"]
+            assert current
+        else:
+            assert payload["completed"] is True
 
     repeated = api_client.post(
         f"/api/v1/mock-interviews/{body['id']}/answers",
-        json={"answer": "Повтор", "answer_id": next_question["answer_id"]},
+        json={"answer": "Повтор", "answer_id": current["answer_id"]},
     )
     assert repeated.status_code == 200
     assert repeated.json()["completed"] is True
@@ -73,7 +66,7 @@ def test_mock_interview_flow(api_client, db_session):
     report = api_client.get(f"/api/v1/mock-interviews/{body['id']}")
     assert report.status_code == 200
     assert report.json()["status"] == "completed"
-    assert len(report.json()["answers"]) == 2
+    assert len(report.json()["answers"]) == 5
 
 
 def test_mock_interview_is_private(api_client, db_session):
@@ -89,7 +82,7 @@ def test_mock_interview_is_private(api_client, db_session):
 
 def test_mock_answer_rejects_empty(api_client, db_session):
     register(api_client, email="mock-empty@example.com")
-    _questions(db_session, 1)
+    _questions(db_session)
     started = api_client.post("/api/v1/mock-interviews").json()
     response = api_client.post(
         f"/api/v1/mock-interviews/{started['id']}/answers",
@@ -107,7 +100,7 @@ def test_mock_answer_returns_retry_after(api_client, db_session):
     from app.core.rate_limit import ai_teacher_rate_limiter
 
     register(api_client, email="mock-limit@example.com")
-    _questions(db_session, 1)
+    _questions(db_session)
     started = api_client.post("/api/v1/mock-interviews").json()
     user_id = api_client.get("/api/v1/auth/me").json()["id"]
     key = f"mock-interview:{user_id}"

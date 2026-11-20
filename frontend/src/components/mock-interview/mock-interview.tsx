@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import { mockInterviewContent as t } from "@/content/mock-interview";
-import { ApiError, fetchMockInterview, startMockInterview, submitMockAnswer } from "@/lib/api";
+import { ApiError, fetchMockInterview, fetchMockInterviews, startMockInterview, submitMockAnswer } from "@/lib/api";
 import type { MockQuestion, MockReport, MockSession } from "@/lib/mock-interview-types";
 
 export function MockInterview() {
@@ -17,6 +17,7 @@ export function MockInterview() {
     ownerRef.current = owner;
   }, [owner]);
   const [sessionOwner, setSessionOwner] = useState<string | null>(null);
+  const [attempts, setAttempts] = useState<MockSession[]>([]);
   const [session, setSession] = useState<MockSession | null>(null);
   const [current, setCurrent] = useState<MockQuestion | null>(null);
   const [answer, setAnswer] = useState("");
@@ -25,6 +26,15 @@ export function MockInterview() {
   const [busy, setBusy] = useState(false);
   const [useAi, setUseAi] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const controller = new AbortController();
+    fetchMockInterviews()
+      .then((items) => setAttempts(items))
+      .catch(() => setAttempts([]));
+    return () => controller.abort();
+  }, [status, owner]);
 
   if (status === "loading") {
     return <p className="text-sm text-muted-foreground">{t.starting}</p>;
@@ -114,6 +124,33 @@ export function MockInterview() {
     setFeedback(null);
     setAnswer("");
     setError(null);
+    setUseAi(false);
+  }
+
+  async function reloadReport() {
+    if (!session) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const completed = await fetchMockInterview(session.id);
+      setReport(completed);
+      setSession((value) => (value ? { ...value, status: "completed" } : value));
+    } catch {
+      setError(t.loadError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (session && !current && !report) {
+    return (
+      <div className="rounded-xl border bg-card p-6">
+        <p className="text-sm text-muted-foreground">{t.loadError}</p>
+        <Button className="mt-4" onClick={() => void reloadReport()} disabled={busy}>
+          {t.reportRetry}
+        </Button>
+      </div>
+    );
   }
 
   if (session && sessionOwner !== owner) {
@@ -125,6 +162,17 @@ export function MockInterview() {
         </Button>
       </div>
     );
+  }
+
+  function resume(item: MockSession) {
+    if (item.current === null) return;
+    setSession(item);
+    setSessionOwner(owner);
+    setCurrent(item.current);
+    setReport(null);
+    setFeedback(null);
+    setAnswer("");
+    setError(null);
   }
 
   if (!session) {
@@ -157,6 +205,22 @@ export function MockInterview() {
         >
           {t.backToTrainers}
         </Link>
+        {attempts.some((item) => item.status === "active" && item.current) ? (
+          <div className="mt-4">
+            <p className="text-sm font-medium">{t.continueTitle}</p>
+            <ul className="mt-2 space-y-2 text-sm">
+              {attempts
+                .filter((item) => item.status === "active" && item.current)
+                .map((item) => (
+                  <li key={item.id}>
+                    <Button variant="outline" size="sm" onClick={() => resume(item)}>
+                      {t.continueSession} #{item.id}
+                    </Button>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     );
   }

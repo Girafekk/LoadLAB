@@ -24,7 +24,7 @@ from app.schemas.mock_interview import (
     MockReport,
     MockSession,
 )
-from app.services import ai_teacher_service
+from app.services import ai_teacher_service, privacy
 
 
 class MockInterviewError(Exception):
@@ -75,6 +75,8 @@ def start(db: Session, user: User, count: int = 5) -> MockSession:
     )
     if not questions:
         raise MockInterviewError("Сначала подтвердите вопросы в банке")
+    if len(questions) < count:
+        raise MockInterviewError(f"Нужно минимум {count} подтверждённых вопросов")
     interview = MockInterview(user_id=user.id, total=len(questions), status="active")
     db.add(interview)
     db.flush()
@@ -94,15 +96,22 @@ def start(db: Session, user: User, count: int = 5) -> MockSession:
     return session_view(interview)
 
 
-def _fallback_feedback(answer: str) -> tuple[int, str]:
-    length = len(answer.split())
-    if length < 5:
-        return 0, "Слишком короткий ответ. Назовите ключевые понятия и приведите пример."
-    if length < 20:
-        return 2, "Ответ по существу, но не хватает примера и проверки результата."
-    if length < 50:
-        return 3, "Хороший ответ. Добавьте, как проверили бы гипотезу на практике."
-    return 4, "Развёрнутый ответ. Проверьте, что названы метрики и границы применимости."
+def _fallback_feedback(answer: str, criteria: str | None = None) -> tuple[int, str]:
+    """Локальная оценка по критериям, а не только по длине."""
+    lowered = answer.casefold()
+    score = 2
+    if len(answer.split()) < 5:
+        return 0, "Слишком короткий ответ. Назовите главное и приведите пример."
+    if "пример" in lowered:
+        score += 1
+    if "границ" in lowered or "ограничен" in lowered:
+        score += 1
+    if criteria:
+        keywords = [word.casefold() for word in re.findall(r"[A-Za-zА-Яа-яЁё]{5,}", criteria)]
+        hits = sum(1 for word in set(keywords) if word in lowered)
+        if hits >= 2:
+            score += 1
+    return min(score, 4), ("Разбор локальный: проверьте, что названы главное, пример и граница.")
 
 
 def evaluate(question: str, answer: str, reference: str | None = None) -> tuple[int, str]:
@@ -115,9 +124,12 @@ def evaluate(question: str, answer: str, reference: str | None = None) -> tuple[
         '{"score": число, "feedback": "2–3 предложения"}. '
         "Не раскрывай персональные данные."
     )
-    user = f"Вопрос: {question}\n\nОтвет кандидата:\n{answer[:6_000]}"
+    user = (
+        f"Вопрос: {privacy.anonymize(question)}\n\n"
+        f"Ответ кандидата:\n{privacy.anonymize(answer[:6_000])}"
+    )
     if reference:
-        user += f"\n\nЭталонный ответ:\n{reference[:3_000]}"
+        user += f"\n\nЭталонный ответ:\n{privacy.anonymize(reference[:3_000])}"
     raw = ai_teacher_service.complete_external(system, user, timeout=35)
     if raw:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
@@ -204,7 +216,7 @@ def submit(
             score, feedback = (
                 evaluate(question_text, text, reference)
                 if allow_external
-                else _fallback_feedback(text)
+                else _fallback_feedback(text, answer.answer_criteria)
             )
             fresh = write_db.scalar(
                 select(MockInterview).where(MockInterview.id == interview_id).with_for_update()
@@ -241,6 +253,18 @@ def submit(
         finally:
             if separate:
                 write_db.close()
+
+
+def list_sessions(db: Session, user: User) -> list[MockSession]:
+    interviews = list(
+        db.scalars(
+            select(MockInterview)
+            .where(MockInterview.user_id == user.id)
+            .order_by(MockInterview.id.desc())
+            .limit(20)
+        )
+    )
+    return [session_view(item) for item in interviews]
 
 
 def get(db: Session, user: User, interview_id: int) -> MockReport:

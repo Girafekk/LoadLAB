@@ -28,6 +28,13 @@ def start_interview(
         raise HTTPException(status_code=422, detail=str(error)) from None
 
 
+@router.get("", response_model=list[MockSession])
+def list_interviews(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[MockSession]:
+    return mock_interview_service.list_sessions(db, user)
+
+
 @router.post("/{interview_id}/answers", response_model=MockAnswerResult)
 def submit_answer(
     interview_id: int,

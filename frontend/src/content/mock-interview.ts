@@ -30,4 +30,7 @@ export const mockInterviewContent = {
   yourAnswer: "Ваш ответ",
   noAnswer: "Ответа нет",
   backToTrainers: "К тренажёрам",
+  continueTitle: "Продолжить прохождение",
+  continueSession: "Продолжить",
+  reportRetry: "Повторить загрузку отчёта",
 } as const;
