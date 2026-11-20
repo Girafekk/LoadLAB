@@ -80,7 +80,7 @@ def test_sql_trainer_runs_safe_select_and_rejects_writes(api_client, db_session)
         },
     )
     assert good.status_code == 200
-    assert good.json()["rows"] == [[8]]
+    assert good.json()["rows"] == [[9]]
     assert good.json()["correct"] is True
 
     bad = api_client.post(

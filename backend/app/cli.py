@@ -5,13 +5,16 @@
     python -m app.cli create_admin
 """
 
+import json
 import sys
 from getpass import getpass
 
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_engine
+from app.models import InterviewQuestion
 from app.schemas.user import UserCreate
 from app.services import auth_service
 
@@ -43,7 +46,28 @@ def create_admin(db: Session) -> int:
     return 0
 
 
-COMMANDS = {"create_admin": create_admin}
+def export_interview(db: Session) -> int:
+    """Печатает банк вопросов JSON в stdout для резервной копии."""
+    questions = list(db.scalars(select(InterviewQuestion).order_by(InterviewQuestion.id)))
+    payload = [
+        {
+            "id": item.id,
+            "text": item.text,
+            "topic": item.topic,
+            "difficulty": item.difficulty,
+            "level": item.level,
+            "status": item.status,
+            "lesson_id": item.lesson_id,
+            "reference_answer": item.reference_answer,
+            "answer_criteria": item.answer_criteria,
+        }
+        for item in questions
+    ]
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+COMMANDS = {"create_admin": create_admin, "export_interview": export_interview}
 
 
 def main(argv: list[str]) -> int:

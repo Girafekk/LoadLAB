@@ -8,7 +8,7 @@
 | [../PROJECT_SPEC.md](../PROJECT_SPEC.md) | Техническое задание: что должна уметь платформа |
 | [../ARCHITECTURE.md](../ARCHITECTURE.md) | Из каких частей состоит система и как они связаны |
 | [../ROADMAP.md](../ROADMAP.md) | Этапы разработки и их статус |
-| [../CURRICULUM.md](../CURRICULUM.md) | Учебная программа курса на 8 недель |
+| [../CURRICULUM.md](../CURRICULUM.md) | Учебная программа курса на 9 недель |
 | [../CLAUDE.md](../CLAUDE.md) | Правила разработки для AI-ассистента и разработчиков |
 | [TEACHING_METHOD.md](TEACHING_METHOD.md) | Методика преподавания и шаблон урока |
 | [REVIEW_BRIEF_STAGES_4-6.md](REVIEW_BRIEF_STAGES_4-6.md) | Задание независимому ревьюеру по этапам 4–6 |

@@ -1,0 +1,201 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+
+import { useAuth } from "@/components/auth/auth-provider";
+import { Button } from "@/components/ui/button";
+import { mockInterviewContent as t } from "@/content/mock-interview";
+import { ApiError, fetchMockInterview, startMockInterview, submitMockAnswer } from "@/lib/api";
+import type { MockQuestion, MockReport, MockSession } from "@/lib/mock-interview-types";
+
+export function MockInterview() {
+  const { status, version, clearSession } = useAuth();
+  const [session, setSession] = useState<MockSession | null>(null);
+  const [current, setCurrent] = useState<MockQuestion | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [feedback, setFeedback] = useState<{ score: number; text: string } | null>(null);
+  const [report, setReport] = useState<MockReport | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (status === "loading") {
+    return <p className="text-sm text-muted-foreground">{t.starting}</p>;
+  }
+  if (status !== "authenticated") {
+    return (
+      <div className="rounded-xl border bg-card p-6">
+        <p className="text-sm text-muted-foreground">{t.needAuth}</p>
+        <Link
+          href="/login?next=%2Fmock-interview"
+          className="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-medium text-brand-foreground"
+        >
+          {t.login}
+        </Link>
+      </div>
+    );
+  }
+
+  async function start() {
+    setBusy(true);
+    setError(null);
+    setReport(null);
+    setFeedback(null);
+    try {
+      const created = await startMockInterview();
+      setSession(created);
+      setCurrent(created.current);
+      setAnswer("");
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        clearSession(version);
+      } else if (caught instanceof ApiError && caught.status === 422) {
+        setError(t.noQuestions);
+      } else {
+        setError(t.loadError);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function send() {
+    if (!session || !answer.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await submitMockAnswer(session.id, answer.trim());
+      setFeedback({ score: result.score, text: result.feedback });
+      setAnswer("");
+      setCurrent(result.next_question);
+      if (result.completed) {
+        setReport(await fetchMockInterview(session.id));
+        setSession((value) => (value ? { ...value, status: "completed" } : value));
+      }
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        clearSession(version);
+      } else {
+        setError(t.error);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function reset() {
+    setSession(null);
+    setCurrent(null);
+    setReport(null);
+    setFeedback(null);
+    setAnswer("");
+    setError(null);
+  }
+
+  if (!session) {
+    return (
+      <div className="rounded-xl border bg-card p-6">
+        <p className="max-w-2xl text-sm text-muted-foreground">{t.intro}</p>
+        {error ? (
+          <p role="alert" className="mt-3 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
+        <Button className="mt-4" size="lg" onClick={() => void start()} disabled={busy}>
+          {busy ? t.starting : t.start}
+        </Button>
+        <Link
+          href="/trainers"
+          className="mt-4 ml-3 inline-flex text-sm text-brand underline-offset-4 hover:underline"
+        >
+          {t.backToTrainers}
+        </Link>
+      </div>
+    );
+  }
+
+  if (report) {
+    const max = report.total * 5;
+    return (
+      <div className="space-y-4">
+        <section className="rounded-xl border bg-card p-6">
+          <h2 className="text-xl font-semibold">{t.completed}</h2>
+          <p className="mt-2 text-2xl font-semibold">{t.score(report.score, max)}</p>
+          <Button className="mt-4" onClick={reset}>
+            {t.retry}
+          </Button>
+        </section>
+        <section className="rounded-xl border bg-card p-6">
+          <h3 className="text-lg font-semibold">{t.report}</h3>
+          <ol className="mt-3 space-y-4">
+            {report.answers.map((item) => (
+              <li key={item.position} className="rounded-lg border p-4 text-sm">
+                <p className="font-medium break-words">
+                  {item.position}. {item.question}
+                </p>
+                <p className="mt-2 whitespace-pre-line text-muted-foreground">
+                  {item.answer ?? t.noAnswer}
+                </p>
+                {item.feedback ? (
+                  <p className="mt-2 rounded-lg bg-surface px-3 py-2">
+                    <span className="font-medium">{t.feedback}: </span>
+                    {item.feedback}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-xl border bg-card p-6">
+        <p className="text-xs text-muted-foreground">
+          {t.question} {current?.position ?? session.total} {t.of} {session.total}
+        </p>
+        <h2 className="mt-2 text-xl leading-relaxed font-medium break-words">
+          {current?.text ?? t.completed}
+        </h2>
+        {feedback ? (
+          <div className="mt-4 rounded-lg bg-surface p-3 text-sm" role="status">
+            <p className="font-medium">
+              {t.feedback}: {feedback.score} / 5
+            </p>
+            <p className="mt-1 whitespace-pre-line">{feedback.text}</p>
+          </div>
+        ) : null}
+        {current ? (
+          <div className="mt-4">
+            <label htmlFor="mock-answer" className="text-sm font-medium">
+              {t.answer}
+            </label>
+            <textarea
+              id="mock-answer"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              maxLength={6000}
+              placeholder={t.answerPlaceholder}
+              className="mt-2 min-h-40 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
+            <Button
+              className="mt-3"
+              size="lg"
+              onClick={() => void send()}
+              disabled={busy || !answer.trim()}
+            >
+              {busy ? t.sending : t.send}
+            </Button>
+          </div>
+        ) : null}
+        {error ? (
+          <p role="alert" className="mt-3 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </section>
+    </div>
+  );
+}

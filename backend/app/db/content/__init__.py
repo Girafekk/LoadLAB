@@ -1,6 +1,6 @@
 """Контент курса по неделям. Каждая неделя — отдельный файл."""
 
-from app.db.content import week1, week2, week3, week4, week5, week6, week7, week8
+from app.db.content import week1, week2, week3, week4, week5, week6, week7, week8, week9
 
 WEEKS = {
     1: week1.LESSONS,
@@ -11,4 +11,5 @@ WEEKS = {
     6: week6.LESSONS,
     7: week7.LESSONS,
     8: week8.LESSONS,
+    9: week9.LESSONS,
 }

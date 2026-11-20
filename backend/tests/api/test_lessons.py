@@ -56,7 +56,7 @@ def test_guest_sees_the_published_program_without_progress(api_client, db_sessio
     assert response.status_code == 200
     body = response.json()
     assert body["slug"] == "load-testing"
-    assert len(body["modules"]) == 8
+    assert len(body["modules"]) == 9
     # Гость видит программу, но не личный прогресс.
     assert body["progress"] is None
     lessons = [lesson for module in body["modules"] for lesson in module["lessons"]]

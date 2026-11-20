@@ -1,7 +1,7 @@
-"""Проверка учебного контента 8 недель."""
+"""Проверка учебного контента 9 недель."""
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.db.content import WEEKS
 from app.db.content.builder import build_blocks
@@ -12,8 +12,8 @@ from app.models import Course, Lesson, LessonBlock, Module, Quiz, QuizQuestion
 
 
 def test_content_covers_all_lessons_and_quizzes():
-    assert sum(len(week) for week in WEEKS.values()) == 60
-    assert sum(len(module.lessons) for module in COURSE.modules) == 60
+    assert sum(len(week) for week in WEEKS.values()) == 70
+    assert sum(len(module.lessons) for module in COURSE.modules) == 70
 
     for module, week in zip(COURSE.modules, WEEKS.values(), strict=True):
         assert len(week) == len(module.lessons)
@@ -97,12 +97,12 @@ def test_seed_content_publishes_lessons_and_quizzes(db_session):
     result = seed_content(db_session)
     db_session.commit()
 
-    assert result.lessons_filled == 60
-    assert result.quizzes_created == 60
-    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 60
-    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 60 * 14
-    assert db_session.scalar(select(func.count()).select_from(Quiz)) == 60
-    assert db_session.scalar(select(func.count()).select_from(QuizQuestion)) == 600
+    assert result.lessons_filled == 70
+    assert result.quizzes_created == 70
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 70
+    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 70 * 14
+    assert db_session.scalar(select(func.count()).select_from(Quiz)) == 70
+    assert db_session.scalar(select(func.count()).select_from(QuizQuestion)) == 700
 
     course = db_session.scalar(select(Course).where(Course.slug == COURSE.slug))
     assert course is not None and course.is_published
@@ -130,7 +130,7 @@ def test_seed_content_is_idempotent(db_session):
 
     assert second.lessons_filled == 0
     assert second.quizzes_created == 0
-    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 840
+    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 980
 
 
 def test_loader_backfills_keys_by_title_after_reorder(db_session):
@@ -213,7 +213,7 @@ def test_seed_content_keeps_lesson_when_moved_to_another_module(db_session):
     db_session.commit()
     db_session.expire_all()
 
-    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 60
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 70
     moved = db_session.get(Lesson, first.id)
     assert moved is not None
     assert moved.module_id == destination.id
@@ -221,6 +221,33 @@ def test_seed_content_keeps_lesson_when_moved_to_another_module(db_session):
     assert moved.title == original_title
     assert moved.blocks
     assert moved.quiz is not None
+
+
+def test_publish_new_content_publishes_only_empty_new_lesson(db_session):
+    seed_curriculum(db_session)
+    seed_content(db_session)
+    db_session.commit()
+    old_lesson = db_session.scalar(
+        select(Lesson)
+        .where(Lesson.module_id == db_session.scalar(select(Module.id).where(Module.position == 1)))
+        .order_by(Lesson.position)
+    )
+    assert old_lesson is not None and old_lesson.blocks
+    old_lesson.is_published = False
+    week9 = db_session.scalar(select(Module).where(Module.position == 9))
+    assert week9 is not None
+    new_lesson = week9.lessons[0]
+    new_lesson.is_published = False
+    db_session.execute(delete(LessonBlock).where(LessonBlock.lesson_id == new_lesson.id))
+    db_session.execute(delete(Quiz).where(Quiz.lesson_id == new_lesson.id))
+    db_session.commit()
+
+    seed_content(db_session, publish_new_content=True)
+    db_session.commit()
+    db_session.expire_all()
+    assert db_session.get(Lesson, old_lesson.id).is_published is False
+    assert db_session.get(Lesson, new_lesson.id).is_published is True
+    assert db_session.scalar(select(Quiz).where(Quiz.lesson_id == new_lesson.id)) is not None
 
 
 def test_refresh_requires_explicit_confirmation(db_session):
@@ -233,8 +260,8 @@ def test_refresh_requires_explicit_confirmation(db_session):
 
     refreshed = seed_content(db_session, refresh=True, confirm_refresh=True)
     db_session.commit()
-    assert refreshed.lessons_filled == 60
-    assert refreshed.quizzes_created == 60
+    assert refreshed.lessons_filled == 70
+    assert refreshed.quizzes_created == 70
 
 
 def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
@@ -272,7 +299,7 @@ def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
     result = seed_content(db_session)
     db_session.commit()
 
-    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 60
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 70
     assert result.lessons_filled == 0
     assert result.quizzes_created == 0
     assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == blocks_before

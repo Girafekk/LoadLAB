@@ -282,6 +282,47 @@ def _external_answer(
         return None
 
 
+def complete_external(system: str, user: str, timeout: float = 30) -> str | None:
+    """Низкоуровневый вызов провайдера для анализа материалов."""
+    config = _provider_config()
+    if config is None:
+        return None
+    base_url, api_key, model, _provider = config
+    endpoint = _safe_endpoint(base_url, _provider)
+    if endpoint is None:
+        return None
+    if not _ai_slots.acquire(timeout=0.5):
+        return None
+    try:
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": 0.1,
+            "max_tokens": 4_000,
+        }
+        request = urllib.request.Request(
+            endpoint,
+            data=json.dumps(payload).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            method="POST",
+        )
+        opener = urllib.request.build_opener(_NoRedirect())
+        with opener.open(request, timeout=max(1, timeout)) as response:
+            body = json.loads(response.read(500_000).decode())
+        content = body.get("choices", [{}])[0].get("message", {}).get("content")
+        return content if isinstance(content, str) and content.strip() else None
+    except Exception:
+        return None
+    finally:
+        _ai_slots.release()
+
+
 def ask(db: Session, user: User, lesson_id: int, question: str) -> AiAnswer:
     deadline = time.monotonic() + AI_DEADLINE_SECONDS
     lesson = published_lesson(db, lesson_id, include_blocks=True)

@@ -3,6 +3,7 @@ export const adminContent = {
   title: "Администрирование",
   dashboard: "Обзор",
   students: "Ученики",
+  interview: "Собеседования",
   accessDenied: "Доступ только для администратора.",
   serverUnavailable: "Сервер недоступен. Проверьте, что backend запущен.",
   login: "Войти",

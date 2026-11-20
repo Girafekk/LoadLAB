@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # Доверенные хосты для резервного провайдера. DeepSeek — фиксированный хост.
     ai_teacher_allowed_hosts: str = "api.openai.com"
 
+    # Куда складывать загруженные материалы собеседований (вне Git).
+    interview_upload_dir: str = "uploads/interview"
+
     # --- База данных PostgreSQL ---
     postgres_host: str = "localhost"
     postgres_port: int = 5432

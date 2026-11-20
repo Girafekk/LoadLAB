@@ -10,5 +10,6 @@ export const siteConfig = {
     { label: "Скоро", href: "/#upcoming" },
     { label: "Программа", href: "/learn" },
     { label: "Тренажёры", href: "/trainers" },
+    { label: "Собеседование", href: "/mock-interview" },
   ],
 } as const;

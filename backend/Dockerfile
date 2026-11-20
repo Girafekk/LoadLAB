@@ -8,6 +8,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# OCR для скриншотов вопросов: английский и русский языки.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-rus \
+    && rm -rf /var/lib/apt/lists/*
+
 # Сначала копируем только списки зависимостей: пока они не меняются,
 # Docker берёт установленные пакеты из кэша и сборка идёт быстро.
 COPY requirements.txt requirements-dev.txt ./
@@ -23,7 +28,9 @@ RUN if [ "$INSTALL_DEV" = "true" ]; then \
 COPY . .
 
 # Приложение работает от обычного пользователя, а не от root.
-RUN useradd --create-home --uid 1000 loadlab
+RUN useradd --create-home --uid 1000 loadlab \
+    && mkdir -p /app/uploads/interview \
+    && chown -R loadlab:loadlab /app/uploads
 USER loadlab
 
 EXPOSE 8000

@@ -46,5 +46,10 @@ desktop.ini
 # ── Служебные файлы проверки прав Windows ─────────────────
 .acl-recovery/
 
+# ── Материалы собеседований: личные файлы, не в Git ───────
+interview_materials/*
+!interview_materials/README.md
+backend/uploads/
+
 # ── Локальная база учебного стенда ────────────────────────
 training_stand/stand.db

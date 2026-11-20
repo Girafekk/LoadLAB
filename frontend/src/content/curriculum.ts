@@ -14,7 +14,7 @@ export const course = {
   title: "Нагрузочное тестирование с нуля",
   description:
     "Основная программа LoadLab: от первых понятий об IT до собственного проекта по нагрузочному тестированию и подготовки к собеседованию на Junior-позицию.",
-  durationWeeks: 8,
+  durationWeeks: 9,
   hoursPerWeek: "12–15",
   level: "С нуля",
   tools: ["HTTP", "Linux", "SQL", "Python", "Apache JMeter", "k6"],
@@ -115,6 +115,19 @@ export const curriculumWeeks: CurriculumWeek[] = [
       "Оформление отчёта и выводы",
       "Повторение SQL, Python, Linux, HTTP и JMeter",
       "Вопросы Junior Load Tester и пробное собеседование",
+    ],
+  },
+  {
+    number: 9,
+    title: "Продвинутые темы и собеседование",
+    summary: "JVM, Kafka, Kubernetes, Groovy, мониторинг и реалистичные данные.",
+    topics: [
+      "JVM, heap, сборка мусора и утечки памяти",
+      "Kafka, consumer group и lag",
+      "Kubernetes и распределённая нагрузка",
+      "Groovy, JSR223 и свойства JMeter",
+      "Prometheus, Grafana и структура ответа на интервью",
+      "Заглушки, эмуляторы, брокеры и отчётность",
     ],
   },
 ];

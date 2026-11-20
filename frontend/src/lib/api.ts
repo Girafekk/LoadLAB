@@ -23,6 +23,18 @@ import type {
   CheatsheetSuggestion,
 } from "@/lib/ai-types";
 import type {
+  AnalyzeResult,
+  InterviewQuestion,
+  InterviewReport,
+  InterviewSource,
+  LessonOption,
+} from "@/lib/interview-types";
+import type {
+  MockAnswerResult,
+  MockReport,
+  MockSession,
+} from "@/lib/mock-interview-types";
+import type {
   BlockInput,
   CourseAdmin,
   CourseTree,
@@ -535,4 +547,102 @@ export function fetchAiRecommendations(signal?: AbortSignal): Promise<AiRecommen
 
 export function fetchAiCheatsheet(signal?: AbortSignal): Promise<CheatsheetSuggestion> {
   return apiRequest<CheatsheetSuggestion>("/ai/teacher/cheatsheet", { signal });
+}
+
+export async function uploadInterviewSource(file: File): Promise<InterviewSource> {
+  const form = new FormData();
+  form.append("file", file);
+  const headers: Record<string, string> = {};
+  if (expectedUserId !== null) headers["X-LoadLab-User"] = String(expectedUserId);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${API_PREFIX}/admin/interview/sources`, {
+      method: "POST",
+      credentials: "include",
+      headers,
+      body: form,
+    });
+  } catch {
+    throw new ApiError(0, "network_error", "Не удалось связаться с сервером");
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const error = payload?.error;
+    throw new ApiError(
+      response.status,
+      error?.code ?? "http_error",
+      error?.message ?? "Не удалось загрузить файл",
+    );
+  }
+  return (await response.json()) as InterviewSource;
+}
+
+export function fetchInterviewSources(signal?: AbortSignal): Promise<InterviewSource[]> {
+  return apiRequest<InterviewSource[]>("/admin/interview/sources", { signal });
+}
+
+export function analyzeInterviewSource(sourceId: number): Promise<AnalyzeResult> {
+  return apiRequest<AnalyzeResult>(`/admin/interview/sources/${sourceId}/analyze`, {
+    method: "POST",
+  });
+}
+
+export function fetchInterviewQuestions(
+  status?: string,
+  signal?: AbortSignal,
+): Promise<InterviewQuestion[]> {
+  const query = status ? `?status=${status}` : "";
+  return apiRequest<InterviewQuestion[]>(`/admin/interview/questions${query}`, { signal });
+}
+
+export function updateInterviewQuestion(
+  questionId: number,
+  data: Partial<Pick<InterviewQuestion, "topic" | "difficulty" | "level" | "status" | "lesson_id">>,
+): Promise<InterviewQuestion> {
+  return apiRequest<InterviewQuestion>(`/admin/interview/questions/${questionId}`, {
+    method: "PATCH",
+    body: data,
+  });
+}
+
+export function fetchInterviewReport(signal?: AbortSignal): Promise<InterviewReport> {
+  return apiRequest<InterviewReport>("/admin/interview/report", { signal });
+}
+
+export function fetchInterviewLessons(signal?: AbortSignal): Promise<LessonOption[]> {
+  return apiRequest<LessonOption[]>("/admin/interview/lessons", { signal });
+}
+
+export function approveAllInterviewQuestions(): Promise<{ approved: number }> {
+  return apiRequest<{ approved: number }>("/admin/interview/approve-all", { method: "POST" });
+}
+
+export function deduplicateInterviewQuestions(): Promise<{ removed: number }> {
+  return apiRequest<{ removed: number }>("/admin/interview/deduplicate", { method: "POST" });
+}
+
+export function generateInterviewAnswers(): Promise<{
+  generated: number;
+  fallback: number;
+  total: number;
+}> {
+  return apiRequest<{ generated: number; fallback: number; total: number }>(
+    "/admin/interview/generate-answers?limit=50",
+    { method: "POST" },
+  );
+}
+
+export function startMockInterview(): Promise<MockSession> {
+  return apiRequest<MockSession>("/mock-interviews", { method: "POST" });
+}
+
+export function submitMockAnswer(interviewId: number, answer: string): Promise<MockAnswerResult> {
+  return apiRequest<MockAnswerResult>(`/mock-interviews/${interviewId}/answers`, {
+    method: "POST",
+    body: { answer },
+  });
+}
+
+export function fetchMockInterview(interviewId: number): Promise<MockReport> {
+  return apiRequest<MockReport>(`/mock-interviews/${interviewId}`);
 }

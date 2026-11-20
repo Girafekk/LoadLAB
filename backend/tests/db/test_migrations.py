@@ -23,6 +23,10 @@ APP_TABLES = {
     "review_items",
     "cheatsheets",
     "ai_teacher_messages",
+    "interview_sources",
+    "interview_questions",
+    "mock_interviews",
+    "mock_interview_answers",
 }
 
 

@@ -7,11 +7,13 @@
 from app.models.ai_teacher_message import AiTeacherMessage
 from app.models.cheatsheet import Cheatsheet
 from app.models.course import Course
+from app.models.interview import InterviewQuestion, InterviewSource
 from app.models.lesson import Lesson
 from app.models.lesson_block import LessonBlock
 from app.models.lesson_highlight import LessonHighlight
 from app.models.lesson_note import LessonNote
 from app.models.lesson_progress import LessonProgress
+from app.models.mock_interview import MockInterview, MockInterviewAnswer
 from app.models.module import Module
 from app.models.quiz import Quiz
 from app.models.quiz_attempt import QuizAttempt
@@ -27,12 +29,16 @@ __all__ = [
     "AiTeacherMessage",
     "Cheatsheet",
     "Course",
+    "InterviewQuestion",
+    "InterviewSource",
     "Lesson",
     "LessonBlock",
     "LessonHighlight",
     "LessonNote",
     "LessonProgress",
     "Module",
+    "MockInterview",
+    "MockInterviewAnswer",
     "Quiz",
     "QuizAttempt",
     "QuizAttemptAnswer",

@@ -64,9 +64,12 @@ services:
       AI_TEACHER_API_KEY: ${AI_TEACHER_API_KEY:-}
       AI_TEACHER_MODEL: ${AI_TEACHER_MODEL:-gpt-4o-mini}
       AI_TEACHER_ALLOWED_HOSTS: ${AI_TEACHER_ALLOWED_HOSTS:-api.openai.com}
+      INTERVIEW_UPLOAD_DIR: /app/uploads/interview
     ports:
       # Напрямую наружу не нужен, но порт полезен для проверок и отладки.
       - "127.0.0.1:${PROD_BACKEND_PORT:-18000}:8000"
+    volumes:
+      - prod_interview_uploads:/app/uploads/interview
     depends_on:
       db-prod:
         condition: service_healthy
@@ -89,5 +92,7 @@ services:
 volumes:
   prod_postgres_data:
     name: loadlab_prod_postgres_data
+  prod_interview_uploads:
+    name: loadlab_prod_interview_uploads
   caddy_data:
     name: loadlab_prod_caddy_data

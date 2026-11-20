@@ -70,7 +70,7 @@ SQL_EXERCISES = (
         "title": "Число модулей",
         "task": "Посчитайте модули курса load-testing.",
         "hint": "COUNT(*) и подзапрос по courses.slug.",
-        "expected": "8",
+        "expected": "9",
     },
     {
         "id": "sql-published",

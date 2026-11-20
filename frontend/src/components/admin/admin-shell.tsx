@@ -45,6 +45,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
         >
           {t.students}
         </Link>
+        <Link
+          href="/admin/interview"
+          className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted"
+        >
+          {t.interview}
+        </Link>
       </nav>
       <div className="mt-6">{children}</div>
     </div>
