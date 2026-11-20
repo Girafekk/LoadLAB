@@ -7,7 +7,11 @@
 from app.models.ai_teacher_message import AiTeacherMessage
 from app.models.cheatsheet import Cheatsheet
 from app.models.course import Course
-from app.models.interview import InterviewQuestion, InterviewSource
+from app.models.interview import (
+    InterviewQuestion,
+    InterviewQuestionSource,
+    InterviewSource,
+)
 from app.models.lesson import Lesson
 from app.models.lesson_block import LessonBlock
 from app.models.lesson_highlight import LessonHighlight
@@ -30,6 +34,7 @@ __all__ = [
     "Cheatsheet",
     "Course",
     "InterviewQuestion",
+    "InterviewQuestionSource",
     "InterviewSource",
     "Lesson",
     "LessonBlock",

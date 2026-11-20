@@ -183,6 +183,9 @@ def submit(
             answer = next((item for item in interview.answers if item.answer is None), None)
         if answer is None or (answer.question is None and not answer.question_text):
             raise MockInterviewError("Вопросы закончились")
+        expected = next((item for item in interview.answers if item.answer is None), None)
+        if expected is None or expected.id != answer.id:
+            raise MockInterviewValidationError("Это не текущий вопрос")
         answer_id = answer.id
         question_text = answer.question_text or (answer.question.text if answer.question else "")
         reference = answer.reference_answer or (
@@ -203,12 +206,22 @@ def submit(
                 if allow_external
                 else _fallback_feedback(text)
             )
-            fresh = write_db.get(MockInterview, interview_id)
+            fresh = write_db.scalar(
+                select(MockInterview).where(MockInterview.id == interview_id).with_for_update()
+            )
             if fresh is None:
                 raise MockInterviewError("Собеседование не найдено")
             fresh_answer = next((item for item in fresh.answers if item.id == answer_id), None)
             if fresh_answer is None:
                 raise MockInterviewError("Вопрос не найден")
+            if fresh_answer.answer is not None:
+                return MockAnswerResult(
+                    answer_id=fresh_answer.id,
+                    score=fresh_answer.score or 0,
+                    feedback=fresh_answer.feedback or "Ответ уже сохранён.",
+                    completed=fresh.status == "completed",
+                    next_question=_current(fresh),
+                )
             fresh_answer.answer = text
             fresh_answer.score = score
             fresh_answer.feedback = feedback

@@ -58,3 +58,17 @@ class InterviewQuestion(TimestampMixin, Base):
 
     source: Mapped[InterviewSource | None] = relationship(back_populates="questions")
     lesson: Mapped[Lesson | None] = relationship()
+
+
+class InterviewQuestionSource(Base):
+    """Вклад одного источника в вопрос: защищает occurrences от двойного счёта."""
+
+    __tablename__ = "interview_question_sources"
+
+    question_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("interview_questions.id", ondelete="CASCADE"), primary_key=True
+    )
+    source_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("interview_sources.id", ondelete="CASCADE"), primary_key=True
+    )
+    occurrences: Mapped[int] = mapped_column(Integer, default=1)

@@ -7,6 +7,7 @@ import json
 import re
 import time
 import uuid
+from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from app.core.config import get_settings
 from app.models import (
     Course,
     InterviewQuestion,
+    InterviewQuestionSource,
     InterviewSource,
     Lesson,
     MockInterviewAnswer,
@@ -389,6 +391,14 @@ def analyze_source(
                 InterviewQuestion.status == "proposed",
             )
         )
+        write_db.execute(
+            InterviewQuestionSource.__table__.delete().where(
+                InterviewQuestionSource.source_id == source_id
+            )
+        )
+        counts = Counter(_fingerprint(_clean_text(str(item["text"]))[:1_000]) for item in extracted)
+        seen: set[str] = set()
+        touched: set[int] = set()
         created = 0
         duplicates = 0
         for item in extracted:
@@ -396,16 +406,17 @@ def analyze_source(
             if len(question_text) < 10:
                 continue
             fingerprint = _fingerprint(question_text)
+            if fingerprint in seen:
+                continue
+            seen.add(fingerprint)
             existing = write_db.scalar(
                 select(InterviewQuestion).where(InterviewQuestion.fingerprint == fingerprint)
             )
             if existing is not None:
-                if existing.source_id != source_id:
-                    existing.occurrences += 1
-                duplicates += 1
-                continue
-            write_db.add(
-                InterviewQuestion(
+                duplicates += counts[fingerprint]
+                question = existing
+            else:
+                question = InterviewQuestion(
                     fingerprint=fingerprint,
                     text=question_text,
                     topic=canonical_topic(str(item["topic"])[:120], question_text),
@@ -416,9 +427,26 @@ def analyze_source(
                     status="proposed",
                     occurrences=1,
                 )
+                write_db.add(question)
+                write_db.flush()
+                created += 1
+            write_db.add(
+                InterviewQuestionSource(
+                    question_id=question.id,
+                    source_id=source_id,
+                    occurrences=counts[fingerprint],
+                )
             )
-            write_db.flush()
-            created += 1
+            touched.add(question.id)
+        for question_id in touched:
+            total = write_db.scalar(
+                select(func.coalesce(func.sum(InterviewQuestionSource.occurrences), 0)).where(
+                    InterviewQuestionSource.question_id == question_id
+                )
+            )
+            question = write_db.get(InterviewQuestion, question_id)
+            if question is not None:
+                question.occurrences = int(total or 0)
         source_row = write_db.get(InterviewSource, source_id)
         if source_row is not None:
             source_row.status = "analyzed"
