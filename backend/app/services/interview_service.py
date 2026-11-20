@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fastapi import UploadFile
 from sqlalchemy import func, select
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -347,64 +348,86 @@ def analyze_source(
 ) -> AnalyzeResult:
     if not source.text:
         raise InterviewError("Нет извлечённого текста")
+    source_id = source.id
+    text = source.text
     lessons = _lesson_choices(db)
-    extracted = (_ai_questions(db, source.text, lessons) if allow_external else None) or [
-        {"text": text, "topic": "Общее", "difficulty": "junior", "level": "base", "lesson_id": None}
-        for text in _heuristic_questions(source.text)
-    ]
-    # Повторный разбор источника не должен накапливать его же дубли.
-    db.execute(
-        InterviewQuestion.__table__.delete().where(
-            InterviewQuestion.source_id == source.id,
-            InterviewQuestion.status == "proposed",
-        )
-    )
-    created = 0
-    duplicates = 0
-    for item in extracted:
-        text = _clean_text(str(item["text"]))[:1_000]
-        if len(text) < 10:
-            continue
-        fingerprint = _fingerprint(text)
-        existing = db.scalar(
-            select(InterviewQuestion).where(InterviewQuestion.fingerprint == fingerprint)
-        )
-        if existing is not None:
-            if existing.source_id != source.id:
-                existing.occurrences += 1
-            duplicates += 1
-            continue
-        db.add(
-            InterviewQuestion(
-                fingerprint=fingerprint,
-                text=text,
-                topic=canonical_topic(str(item["topic"])[:120], text),
-                difficulty=str(item["difficulty"]),
-                level=str(item["level"]),
-                source_id=source.id,
-                lesson_id=item["lesson_id"],  # type: ignore[arg-type]
-                status="proposed",
-                occurrences=1,
+    bind = db.get_bind()
+    separate = isinstance(bind, Engine)
+    if separate:
+        # Не держим соединение пула, пока ждём внешнего провайдера.
+        db.close()
+        write_db = Session(bind=bind)
+    else:
+        write_db = db
+    try:
+        extracted = (_ai_questions(write_db, text, lessons) if allow_external else None) or [
+            {
+                "text": item,
+                "topic": "Общее",
+                "difficulty": "junior",
+                "level": "base",
+                "lesson_id": None,
+            }
+            for item in _heuristic_questions(text)
+        ]
+        # Повторный разбор источника не должен накапливать его же дубли.
+        write_db.execute(
+            InterviewQuestion.__table__.delete().where(
+                InterviewQuestion.source_id == source_id,
+                InterviewQuestion.status == "proposed",
             )
         )
-        db.flush()
-        created += 1
-    source.status = "analyzed"
-    if len(source.text) > 120_000:
-        source.error = (
-            f"Материал длиннее 120 000 символов: разобраны первые 120 000 "
-            f"(всего {len(source.text)})."
+        created = 0
+        duplicates = 0
+        for item in extracted:
+            question_text = _clean_text(str(item["text"]))[:1_000]
+            if len(question_text) < 10:
+                continue
+            fingerprint = _fingerprint(question_text)
+            existing = write_db.scalar(
+                select(InterviewQuestion).where(InterviewQuestion.fingerprint == fingerprint)
+            )
+            if existing is not None:
+                if existing.source_id != source_id:
+                    existing.occurrences += 1
+                duplicates += 1
+                continue
+            write_db.add(
+                InterviewQuestion(
+                    fingerprint=fingerprint,
+                    text=question_text,
+                    topic=canonical_topic(str(item["topic"])[:120], question_text),
+                    difficulty=str(item["difficulty"]),
+                    level=str(item["level"]),
+                    source_id=source_id,
+                    lesson_id=item["lesson_id"],  # type: ignore[arg-type]
+                    status="proposed",
+                    occurrences=1,
+                )
+            )
+            write_db.flush()
+            created += 1
+        source_row = write_db.get(InterviewSource, source_id)
+        if source_row is not None:
+            source_row.status = "analyzed"
+            if len(text) > 120_000:
+                source_row.error = (
+                    f"Материал длиннее 120 000 символов: разобраны первые 120 000 "
+                    f"(всего {len(text)})."
+                )
+            else:
+                source_row.error = None
+        write_db.commit()
+        provider = "llm" if ai_teacher_service.provider_status().external else "local"
+        return AnalyzeResult(
+            sources_processed=1,
+            questions_created=created,
+            duplicates=duplicates,
+            provider=provider,
         )
-    else:
-        source.error = None
-    db.commit()
-    provider = "llm" if ai_teacher_service.provider_status().external else "local"
-    return AnalyzeResult(
-        sources_processed=1,
-        questions_created=created,
-        duplicates=duplicates,
-        provider=provider,
-    )
+    finally:
+        if separate:
+            write_db.close()
 
 
 def update_question(
