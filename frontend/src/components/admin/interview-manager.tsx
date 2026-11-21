@@ -78,6 +78,8 @@ export function InterviewManager() {
         setMessage(t.uploaded);
       }
       setReloadToken((value) => value + 1);
+      setAllowExternal(false);
+      setAllowAnswersExternal(false);
     } catch {
       setError(t.uploadError);
     } finally {
@@ -91,6 +93,7 @@ export function InterviewManager() {
     try {
       const result = await analyzeInterviewSource(source.id, allowExternal);
       setMessage(t.analyzeResult(result.questions_created, result.duplicates));
+      setAllowExternal(false);
       setReloadToken((value) => value + 1);
     } catch {
       setError(t.uploadError);
@@ -147,6 +150,7 @@ export function InterviewManager() {
     try {
       const result = await generateInterviewAnswers(allowAnswersExternal);
       setMessage(t.answersGenerated(result.generated));
+      setAllowAnswersExternal(false);
       setReloadToken((value) => value + 1);
     } catch {
       setError(t.approveError);

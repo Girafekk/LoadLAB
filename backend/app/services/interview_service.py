@@ -142,6 +142,10 @@ class InterviewError(Exception):
     """Ошибка загрузки или разбора материала."""
 
 
+class InterviewTooLarge(InterviewError):
+    """Файл превышает допустимый размер."""
+
+
 def _upload_dir() -> Path:
     path = Path(get_settings().interview_upload_dir)
     path.mkdir(parents=True, exist_ok=True)
@@ -248,7 +252,8 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
     )
     valid_ids = {item.id for item in lessons}
     result: list[dict[str, object]] = []
-    chunks = [text[index : index + 12_000] for index in range(0, len(text), 12_000)]
+    safe_text = privacy.anonymize(text)
+    chunks = [safe_text[index : index + 12_000] for index in range(0, len(safe_text), 12_000)]
     for chunk in chunks[:10]:
         raw = ai_teacher_service.complete_external(
             system,
@@ -307,7 +312,7 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSource:
         raise InterviewError("Поддерживаются TXT, PDF, DOCX, PNG и JPG")
     content = upload.file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
-        raise InterviewError("Файл больше 10 МБ")
+        raise InterviewTooLarge("Файл больше 10 МБ")
     if not content:
         raise InterviewError("Файл пустой")
     stored_name = hashlib.sha256(content).hexdigest()[:32] + "-" + uuid.uuid4().hex[:12] + suffix

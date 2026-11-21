@@ -48,6 +48,7 @@ class MockInterviewAnswer(Base):
     )
     position: Mapped[int] = mapped_column(Integer)
     question_text: Mapped[str | None] = mapped_column(Text)
+    question_topic: Mapped[str | None] = mapped_column(String(120))
     reference_answer: Mapped[str | None] = mapped_column(Text)
     answer_criteria: Mapped[str | None] = mapped_column(Text)
     answer: Mapped[str | None] = mapped_column(Text)

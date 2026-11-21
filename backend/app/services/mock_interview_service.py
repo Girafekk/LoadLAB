@@ -42,7 +42,7 @@ def _question(answer: MockInterviewAnswer) -> MockQuestion | None:
         answer_id=answer.id,
         question_id=answer.question_id,
         text=answer.question_text or (answer.question.text if answer.question else ""),
-        topic=answer.question.topic if answer.question else None,
+        topic=answer.question_topic or (answer.question.topic if answer.question else None),
         position=answer.position,
     )
 
@@ -87,6 +87,7 @@ def start(db: Session, user: User, count: int = 5) -> MockSession:
                 question_id=question.id,
                 position=position,
                 question_text=question.text,
+                question_topic=question.topic,
                 reference_answer=question.reference_answer,
                 answer_criteria=question.answer_criteria,
             )
@@ -128,12 +129,12 @@ def evaluate(
     )
     user = (
         f"Вопрос: {privacy.anonymize(question)}\n\n"
-        f"Ответ кандидата:\n{privacy.anonymize(answer[:6_000])}"
+        f"Ответ кандидата:\n{privacy.anonymize(answer)[:6_000]}"
     )
     if reference:
-        user += f"\n\nЭталонный ответ:\n{privacy.anonymize(reference[:3_000])}"
+        user += f"\n\nЭталонный ответ:\n{privacy.anonymize(reference)[:3_000]}"
     if criteria:
-        user += f"\n\nКритерии оценки:\n{privacy.anonymize(criteria[:2_000])}"
+        user += f"\n\nКритерии оценки:\n{privacy.anonymize(criteria)[:2_000]}"
     raw = ai_teacher_service.complete_external(system, user, timeout=35)
     if raw:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
@@ -204,9 +205,7 @@ def submit(
             raise MockInterviewValidationError("Это не текущий вопрос")
         answer_id = answer.id
         question_text = answer.question_text or (answer.question.text if answer.question else "")
-        reference = answer.reference_answer or (
-            answer.question.reference_answer if answer.question else None
-        )
+        reference = answer.reference_answer
         criteria = answer.answer_criteria
         all_count = len(interview.answers)
         answered_count = sum(1 for item in interview.answers if item.answer is not None)
