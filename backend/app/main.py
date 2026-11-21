@@ -7,9 +7,8 @@
 
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -33,6 +32,8 @@ class UploadLimitMiddleware:
         body = bytearray()
         while True:
             message = await receive()
+            if message["type"] == "http.disconnect":
+                return
             if message["type"] != "http.request":
                 continue
             body.extend(message.get("body", b""))
@@ -48,7 +49,7 @@ class UploadLimitMiddleware:
                     {
                         "type": "http.response.body",
                         "body": (
-                            b'{"error":{"code":"file_too_large",'
+                            b'{"error":{"code":"http_error",'
                             b'"message":"File is too large","details":null}}'
                         ),
                     }
@@ -99,23 +100,6 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(app)
-
-    @app.middleware("http")
-    async def limit_interview_upload(request: Request, call_next):
-        if request.method == "POST" and request.url.path.endswith("/admin/interview/sources"):
-            length = int(request.headers.get("content-length", "0") or 0)
-            if length > 11 * 1024 * 1024:
-                return JSONResponse(
-                    status_code=413,
-                    content={
-                        "error": {
-                            "code": "file_too_large",
-                            "message": "Файл больше 10 МБ",
-                            "details": None,
-                        }
-                    },
-                )
-        return await call_next(request)
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     return app

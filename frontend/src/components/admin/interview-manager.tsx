@@ -90,10 +90,11 @@ export function InterviewManager() {
   async function analyze(source: InterviewSource) {
     setBusyId(source.id);
     setError(null);
+    const consent = allowExternal;
+    setAllowExternal(false);
     try {
-      const result = await analyzeInterviewSource(source.id, allowExternal);
+      const result = await analyzeInterviewSource(source.id, consent);
       setMessage(t.analyzeResult(result.questions_created, result.duplicates));
-      setAllowExternal(false);
       setReloadToken((value) => value + 1);
     } catch {
       setError(t.uploadError);
@@ -147,10 +148,11 @@ export function InterviewManager() {
   async function generateAnswers() {
     setBusyId(-3);
     setError(null);
+    const consent = allowAnswersExternal;
+    setAllowAnswersExternal(false);
     try {
-      const result = await generateInterviewAnswers(allowAnswersExternal);
+      const result = await generateInterviewAnswers(consent);
       setMessage(t.answersGenerated(result.generated));
-      setAllowAnswersExternal(false);
       setReloadToken((value) => value + 1);
     } catch {
       setError(t.approveError);

@@ -103,6 +103,7 @@ export function MockInterview() {
       setFeedback({ score: result.score, text: result.feedback });
       setAnswer("");
       setCurrent(result.next_question);
+      setUseAi(false);
       if (result.completed) {
         const completedReport = await fetchMockInterview(session.id);
         if (ownerRef.current !== requestOwner) return;

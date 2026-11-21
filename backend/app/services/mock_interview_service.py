@@ -42,7 +42,11 @@ def _question(answer: MockInterviewAnswer) -> MockQuestion | None:
         answer_id=answer.id,
         question_id=answer.question_id,
         text=answer.question_text or (answer.question.text if answer.question else ""),
-        topic=answer.question_topic or (answer.question.topic if answer.question else None),
+        topic=(
+            answer.question_topic
+            if answer.question_topic is not None
+            else (answer.question.topic if answer.question else None)
+        ),
         position=answer.position,
     )
 
@@ -147,7 +151,7 @@ def evaluate(
                     return score, feedback.replace("\x00", "")[:2_000]
             except (ValueError, TypeError, json.JSONDecodeError):
                 pass
-    return _fallback_feedback(answer)
+    return _fallback_feedback(answer, criteria)
 
 
 _locks_guard = threading.Lock()
@@ -207,8 +211,6 @@ def submit(
         question_text = answer.question_text or (answer.question.text if answer.question else "")
         reference = answer.reference_answer
         criteria = answer.answer_criteria
-        all_count = len(interview.answers)
-        answered_count = sum(1 for item in interview.answers if item.answer is not None)
         bind = db.get_bind()
         separate = isinstance(bind, Engine)
         if separate:
@@ -241,7 +243,7 @@ def submit(
             fresh_answer.answer = text
             fresh_answer.score = score
             fresh_answer.feedback = feedback
-            if answered_count + 1 >= all_count:
+            if all(item.answer is not None for item in fresh.answers):
                 fresh.status = "completed"
                 fresh.completed_at = datetime.now(UTC)
                 fresh.score = sum(item.score or 0 for item in fresh.answers)
