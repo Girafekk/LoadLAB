@@ -278,6 +278,7 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
         is_published: quizPublished,
         questions,
         confirm_attempts_loss: losesAttempts,
+        expected_attempts_count: attemptsCount,
       });
       setQuizExists(true);
       setAttemptsCount(0);
@@ -292,7 +293,7 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
     if (!lesson || !window.confirm(t.deleteQuizConfirm)) return;
     setError(null);
     try {
-      await deleteAdminQuiz(lesson.id, true);
+      await deleteAdminQuiz(lesson.id, true, attemptsCount);
       setQuizExists(false);
       setQuestions([]);
       setAttemptsCount(0);

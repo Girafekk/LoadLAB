@@ -23,7 +23,7 @@ from app.schemas.ai_teacher import (
     AiStatus,
     CheatsheetSuggestion,
 )
-from app.services import weak_topics_service
+from app.services import privacy, weak_topics_service
 from app.services.course_service import published_lesson
 
 MAX_CONTEXT = 6_000
@@ -246,13 +246,15 @@ def _external_answer(
             {
                 "role": "user",
                 "content": (
-                    f"Урок: {lesson.title}\n\nМатериал:\n{_lesson_context(lesson)}\n\n"
+                    f"Урок: {privacy.anonymize(lesson.title)}\n\n"
+                    f"Материал:\n{privacy.anonymize(_lesson_context(lesson))}\n\n"
                     + (
-                        f"Предыдущий ответ, который нужно переписать иначе:\n{previous[:2_000]}\n\n"
+                        "Предыдущий ответ, который нужно переписать иначе:\n"
+                        f"{privacy.anonymize(previous[:2_000])}\n\n"
                         if mode == "simpler" and previous
                         else ""
                     )
-                    + f"Вопрос ученика: {question}"
+                    + f"Вопрос ученика: {privacy.anonymize(question)}"
                 ),
             },
         ],

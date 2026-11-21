@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { SessionBoundary } from "@/components/auth/session-boundary";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { themeInitScript } from "@/lib/theme";
@@ -41,7 +42,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <AuthProvider>
           <SiteHeader />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            <SessionBoundary>{children}</SessionBoundary>
+          </main>
           <SiteFooter />
         </AuthProvider>
       </body>

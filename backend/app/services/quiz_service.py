@@ -5,6 +5,7 @@
 """
 
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -41,6 +42,10 @@ class QuizValidationError(Exception):
 
 class QuizContentError(Exception):
     """Квиз настроен неверно: вопрос без верного варианта или без вопросов."""
+
+
+class QuizDuplicateError(Exception):
+    """Та же сдача уже сохранена: повтор не создаёт вторую попытку."""
 
 
 def _percent(score: int, max_score: int) -> int:
@@ -212,6 +217,19 @@ def submit_attempt(
     _ensure_valid_content(quiz)
 
     selected = _validate_answers(quiz.questions, data.answers)
+    recent = db.scalar(
+        select(QuizAttempt)
+        .where(QuizAttempt.quiz_id == quiz.id, QuizAttempt.user_id == user.id)
+        .order_by(QuizAttempt.created_at.desc(), QuizAttempt.id.desc())
+        .limit(1)
+    )
+    if recent is not None and recent.created_at > datetime.now(UTC) - timedelta(seconds=5):
+        stored = {
+            item.question_id: {option.id for option in item.selected_options}
+            for item in recent.answers
+        }
+        if stored and stored == selected:
+            raise QuizDuplicateError
     score = 0
     results: list[QuizQuestionResult] = []
     answers_to_store: list[tuple[QuizQuestion, bool, list[QuizOption]]] = []

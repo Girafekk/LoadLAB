@@ -458,8 +458,14 @@ export function replaceAdminQuiz(lessonId: number, body: QuizPayload): Promise<Q
 export function deleteAdminQuiz(
   lessonId: number,
   confirmAttemptsLoss = false,
+  expectedAttemptsCount?: number,
 ): Promise<void> {
-  const query = confirmAttemptsLoss ? "?confirm_attempts_loss=true" : "";
+  const params = new URLSearchParams();
+  if (confirmAttemptsLoss) params.set("confirm_attempts_loss", "true");
+  if (expectedAttemptsCount !== undefined) {
+    params.set("expected_attempts_count", String(expectedAttemptsCount));
+  }
+  const query = params.size ? `?${params.toString()}` : "";
   return apiRequest<void>(`/admin/lessons/${lessonId}/quiz${query}`, {
     method: "DELETE",
   });

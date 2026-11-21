@@ -45,6 +45,12 @@ def submit_answer(
     saved = mock_interview_service.saved_result(db, user, interview_id, data.answer_id)
     if saved is not None:
         return saved
+    try:
+        report = mock_interview_service.get(db, user, interview_id)
+    except mock_interview_service.MockInterviewError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from None
+    if report.current is None or report.current.answer_id != data.answer_id:
+        raise HTTPException(status_code=422, detail="Это не текущий вопрос")
     if not mock_interview_service.claim_answer(db, user, interview_id, data.answer_id):
         saved = mock_interview_service.saved_result(db, user, interview_id, data.answer_id)
         if saved is not None:

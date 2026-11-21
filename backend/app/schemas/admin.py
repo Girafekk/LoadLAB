@@ -127,6 +127,8 @@ class QuizAdminPayload(BaseModel):
     questions: list[QuizQuestionAdmin] = Field(min_length=1, max_length=30)
     # Явное подтверждение: замена вопросов удаляет попытки учеников.
     confirm_attempts_loss: bool = False
+    # Версия, которую видел администратор: число попыток на момент открытия.
+    expected_attempts_count: int | None = Field(default=None, ge=0)
 
 
 class QuizAdminRead(BaseModel):

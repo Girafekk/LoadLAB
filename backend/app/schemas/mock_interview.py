@@ -45,6 +45,7 @@ class MockReport(BaseModel):
     created_at: datetime
     completed_at: datetime | None
     answers: list[MockAnswerRead]
+    current: MockQuestion | None = None
 
 
 class MockAnswerInput(BaseModel):

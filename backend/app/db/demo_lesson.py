@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.curriculum_data import COURSE
-from app.models import Course, Lesson, LessonBlock, Module
+from app.models import Course, Lesson, LessonBlock
 
 DEMO_LESSON_TITLE = "Как делают программы: команда, роли, место тестировщика"
 
@@ -186,13 +186,9 @@ def publish_demo_lesson(session: Session) -> int:
     if course is None:
         raise RuntimeError("Сначала загрузите структуру курса: python -m app.db.seed")
 
-    lesson = session.scalar(
-        select(Lesson)
-        .join(Module)
-        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
-    )
+    lesson = session.scalar(select(Lesson).where(Lesson.content_key == "w1-l1"))
     if lesson is None:
-        raise RuntimeError("В курсе нет первого урока: проверьте структуру программы")
+        raise RuntimeError("В курсе нет демо-урока w1-l1: проверьте структуру программы")
 
     # Считаем блоки запросом, а не через relationship: так повторный вызов
     # в той же ORM-сессии не добавит второй комплект блоков.

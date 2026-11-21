@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import re
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
@@ -292,7 +292,10 @@ def claim_answer(db: Session, user: User, interview_id: int, answer_id: int) -> 
         .where(
             MockInterviewAnswer.id == answer_id,
             MockInterviewAnswer.answer.is_(None),
-            MockInterviewAnswer.processing_at.is_(None),
+            or_(
+                MockInterviewAnswer.processing_at.is_(None),
+                MockInterviewAnswer.processing_at < datetime.now(UTC) - timedelta(minutes=5),
+            ),
         )
         .values(processing_at=datetime.now(UTC))
     )
@@ -358,6 +361,7 @@ def get(db: Session, user: User, interview_id: int) -> MockReport:
         total=interview.total,
         created_at=interview.created_at,
         completed_at=interview.completed_at,
+        current=_current(interview),
         answers=[
             MockAnswerRead(
                 position=item.position,

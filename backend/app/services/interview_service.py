@@ -495,7 +495,9 @@ def analyze_source(
             if question is None:
                 continue
             if int(total or 0) == 0 and question.status == "proposed":
-                write_db.delete(question)
+                # Не удаляем вопрос: частичный разбор не должен терять
+                # ручную разметку и прежние вклады.
+                question.occurrences = 0
             else:
                 question.occurrences = int(total or 0)
         source_row = write_db.get(InterviewSource, source_id)

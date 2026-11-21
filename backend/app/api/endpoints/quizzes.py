@@ -75,5 +75,7 @@ def submit_lesson_quiz(
         raise _quiz_not_found() from None
     except quiz_service.QuizContentError:
         raise _content_unavailable() from None
+    except quiz_service.QuizDuplicateError:
+        raise HTTPException(status_code=409, detail="Эта попытка уже сохранена") from None
     except quiz_service.QuizValidationError as error:
         raise HTTPException(status_code=422, detail=error.message) from None

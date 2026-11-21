@@ -43,6 +43,17 @@ PRODUCTS = (
 )
 
 
+def _require_same_origin(request: Request) -> None:
+    """Cookie-операции принимаются только со страницы самого стенда."""
+    origin = request.headers.get("origin")
+    if origin is None:
+        return
+    host = request.headers.get("host", "")
+    allowed = {f"http://{host}", f"https://{host}"}
+    if origin not in allowed:
+        raise HTTPException(status_code=403, detail="Чужой Origin")
+
+
 def _hash_password(password: str) -> str:
     return hashlib.sha256(f"stand::{password}".encode()).hexdigest()
 
@@ -619,6 +630,7 @@ def create_app() -> FastAPI:
 
     @app.post("/ui/logout")
     def ui_logout(request: Request) -> RedirectResponse:
+        _require_same_origin(request)
         token = request.cookies.get("stand_token")
         if token:
             with db() as connection:
@@ -629,6 +641,7 @@ def create_app() -> FastAPI:
 
     @app.post("/ui/cart/add")
     def ui_add(request: Request, product_id: int = Form(...)) -> RedirectResponse:
+        _require_same_origin(request)
         token = request.cookies.get("stand_token")
         with db(immediate=True) as connection:
             user = _user_from_token(connection, token)
@@ -683,6 +696,7 @@ def create_app() -> FastAPI:
 
     @app.post("/ui/orders")
     def ui_order(request: Request) -> RedirectResponse:
+        _require_same_origin(request)
         token = request.cookies.get("stand_token")
         try:
             with db(immediate=True) as connection:

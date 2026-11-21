@@ -68,6 +68,7 @@ export type QuizPayload = {
   is_published: boolean;
   questions: QuizQuestionAdmin[];
   confirm_attempts_loss?: boolean;
+  expected_attempts_count?: number;
 };
 
 export type StudentProgress = {
