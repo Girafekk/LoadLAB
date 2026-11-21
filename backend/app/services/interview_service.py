@@ -388,7 +388,9 @@ def analyze_source(
         # Повторный разбор источника не должен накапливать его же дубли.
         old_ids = set(
             write_db.scalars(
-                select(InterviewQuestion.id).where(InterviewQuestion.source_id == source_id)
+                select(InterviewQuestionSource.question_id).where(
+                    InterviewQuestionSource.source_id == source_id
+                )
             )
         )
         write_db.execute(
@@ -587,8 +589,31 @@ def deduplicate(db: Session, threshold: float = 0.9) -> int:
                 question.level = other.level
             if other.status == "approved":
                 question.status = "approved"
+            for contribution in list(
+                db.scalars(
+                    select(InterviewQuestionSource).where(
+                        InterviewQuestionSource.question_id == other.id
+                    )
+                )
+            ):
+                target = db.get(
+                    InterviewQuestionSource,
+                    (question.id, contribution.source_id),
+                )
+                if target is not None:
+                    target.occurrences += contribution.occurrences
+                    db.delete(contribution)
+                else:
+                    contribution.question_id = question.id
             removed.add(other.id)
             db.delete(other)
+            db.flush()
+            total = db.scalar(
+                select(func.coalesce(func.sum(InterviewQuestionSource.occurrences), 0)).where(
+                    InterviewQuestionSource.question_id == question.id
+                )
+            )
+            question.occurrences = int(total or 0)
     db.commit()
     return len(removed)
 

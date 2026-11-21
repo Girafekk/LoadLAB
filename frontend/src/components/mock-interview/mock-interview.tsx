@@ -28,11 +28,16 @@ export function MockInterview() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated" || owner === null) return;
+    const requestOwner = owner;
     const controller = new AbortController();
     fetchMockInterviews()
-      .then((items) => setAttempts(items))
-      .catch(() => setAttempts([]));
+      .then((items) => {
+        if (ownerRef.current === requestOwner) setAttempts(items);
+      })
+      .catch(() => {
+        if (ownerRef.current === requestOwner) setAttempts([]);
+      });
     return () => controller.abort();
   }, [status, owner]);
 
@@ -67,6 +72,7 @@ export function MockInterview() {
       setCurrent(created.current);
       setAnswer("");
     } catch (caught) {
+      if (ownerRef.current !== requestOwner) return;
       if (caught instanceof ApiError && caught.status === 401) {
         clearSession(version);
       } else if (caught instanceof ApiError && caught.status === 422) {
@@ -75,7 +81,7 @@ export function MockInterview() {
         setError(t.loadError);
       }
     } finally {
-      setBusy(false);
+      if (ownerRef.current === requestOwner) setBusy(false);
     }
   }
 
@@ -104,6 +110,7 @@ export function MockInterview() {
         setSession((value) => (value ? { ...value, status: "completed" } : value));
       }
     } catch (caught) {
+      if (ownerRef.current !== requestOwner) return;
       if (caught instanceof ApiError && caught.status === 401) {
         clearSession(version);
       } else if (caught instanceof ApiError && caught.status === 429) {
@@ -112,7 +119,7 @@ export function MockInterview() {
         setError(t.error);
       }
     } finally {
-      setBusy(false);
+      if (ownerRef.current === requestOwner) setBusy(false);
     }
   }
 
@@ -129,14 +136,16 @@ export function MockInterview() {
 
   async function reloadReport() {
     if (!session) return;
+    const requestOwner = owner;
     setBusy(true);
     setError(null);
     try {
       const completed = await fetchMockInterview(session.id);
+      if (ownerRef.current !== requestOwner) return;
       setReport(completed);
       setSession((value) => (value ? { ...value, status: "completed" } : value));
     } catch {
-      setError(t.loadError);
+      if (ownerRef.current === requestOwner) setError(t.loadError);
     } finally {
       setBusy(false);
     }
@@ -173,6 +182,7 @@ export function MockInterview() {
     setFeedback(null);
     setAnswer("");
     setError(null);
+    setUseAi(false);
   }
 
   if (!session) {

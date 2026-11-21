@@ -42,6 +42,9 @@ def submit_answer(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MockAnswerResult:
+    saved = mock_interview_service.saved_result(db, user, interview_id, data.answer_id)
+    if saved is not None:
+        return saved
     retry_after = ai_teacher_rate_limiter.reserve_attempt(f"mock-interview:{user.id}")
     if retry_after:
         raise HTTPException(

@@ -30,36 +30,46 @@ class UploadLimitMiddleware:
         if scope["method"] != "POST":
             await self.app(scope, receive, send)
             return
-        received = 0
-
-        async def limited_receive():
-            nonlocal received
+        body = bytearray()
+        while True:
             message = await receive()
-            if message["type"] == "http.request":
-                received += len(message.get("body", b""))
-                if received > self.limit:
-                    raise ValueError("upload_too_large")
-            return message
+            if message["type"] != "http.request":
+                continue
+            body.extend(message.get("body", b""))
+            if len(body) > self.limit:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 413,
+                        "headers": [(b"content-type", b"application/json")],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": (
+                            b'{"error":{"code":"file_too_large",'
+                            b'"message":"File is too large","details":null}}'
+                        ),
+                    }
+                )
+                return
+            if not message.get("more_body", False):
+                break
+        replayed = False
 
-        try:
-            await self.app(scope, limited_receive, send)
-        except ValueError:
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 413,
-                    "headers": [(b"content-type", b"application/json")],
-                }
-            )
-            await send(
-                {
-                    "type": "http.response.body",
-                    "body": (
-                        b'{"error":{"code":"file_too_large",'
-                        b'"message":"File is too large","details":null}}'
-                    ),
-                }
-            )
+        async def replay_receive():
+            nonlocal replayed
+            if replayed:
+                return {"type": "http.disconnect"}
+            replayed = True
+            return {
+                "type": "http.request",
+                "body": bytes(body),
+                "more_body": False,
+            }
+
+        await self.app(scope, replay_receive, send)
 
 
 def create_app() -> FastAPI:

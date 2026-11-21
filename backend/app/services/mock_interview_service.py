@@ -114,7 +114,9 @@ def _fallback_feedback(answer: str, criteria: str | None = None) -> tuple[int, s
     return min(score, 4), ("Разбор локальный: проверьте, что названы главное, пример и граница.")
 
 
-def evaluate(question: str, answer: str, reference: str | None = None) -> tuple[int, str]:
+def evaluate(
+    question: str, answer: str, reference: str | None = None, criteria: str | None = None
+) -> tuple[int, str]:
     system = (
         "Ты интервьюер Junior Load Tester. Оцени ответ по шкале 0–5, сверяясь "
         "с эталоном, если он дан. Поощряй простое объяснение своими словами, "
@@ -130,6 +132,8 @@ def evaluate(question: str, answer: str, reference: str | None = None) -> tuple[
     )
     if reference:
         user += f"\n\nЭталонный ответ:\n{privacy.anonymize(reference[:3_000])}"
+    if criteria:
+        user += f"\n\nКритерии оценки:\n{privacy.anonymize(criteria[:2_000])}"
     raw = ai_teacher_service.complete_external(system, user, timeout=35)
     if raw:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
@@ -203,6 +207,7 @@ def submit(
         reference = answer.reference_answer or (
             answer.question.reference_answer if answer.question else None
         )
+        criteria = answer.answer_criteria
         all_count = len(interview.answers)
         answered_count = sum(1 for item in interview.answers if item.answer is not None)
         bind = db.get_bind()
@@ -214,9 +219,9 @@ def submit(
             write_db = db
         try:
             score, feedback = (
-                evaluate(question_text, text, reference)
+                evaluate(question_text, text, reference, criteria)
                 if allow_external
-                else _fallback_feedback(text, answer.answer_criteria)
+                else _fallback_feedback(text, criteria)
             )
             fresh = write_db.scalar(
                 select(MockInterview).where(MockInterview.id == interview_id).with_for_update()
@@ -253,6 +258,28 @@ def submit(
         finally:
             if separate:
                 write_db.close()
+
+
+def saved_result(
+    db: Session, user: User, interview_id: int, answer_id: int
+) -> MockAnswerResult | None:
+    interview = db.scalar(
+        select(MockInterview).where(
+            MockInterview.id == interview_id, MockInterview.user_id == user.id
+        )
+    )
+    if interview is None:
+        return None
+    answer = next((item for item in interview.answers if item.id == answer_id), None)
+    if answer is None or answer.answer is None:
+        return None
+    return MockAnswerResult(
+        answer_id=answer.id,
+        score=answer.score or 0,
+        feedback=answer.feedback or "Ответ уже сохранён.",
+        completed=interview.status == "completed",
+        next_question=_current(interview),
+    )
 
 
 def list_sessions(db: Session, user: User) -> list[MockSession]:
