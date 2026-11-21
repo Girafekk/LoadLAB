@@ -26,6 +26,7 @@ export function MockInterview() {
   const [report, setReport] = useState<MockReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [useAi, setUseAi] = useState(false);
+  const [consentOwner, setConsentOwner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,13 +105,14 @@ export function MockInterview() {
         session.id,
         answer.trim(),
         answerId,
-        useAi,
+        useAi && consentOwner === owner,
       );
       if (requestOwner === null || ownerRef.current !== requestOwner) return;
       setFeedback({ score: result.score, text: result.feedback });
       setAnswer("");
       setCurrent(result.next_question);
       setUseAi(false);
+      setConsentOwner(null);
       if (result.completed) {
         const completedReport = await fetchMockInterview(session.id);
         if (ownerRef.current !== requestOwner) return;
@@ -130,6 +132,7 @@ export function MockInterview() {
       if (ownerRef.current === requestOwner) {
         setBusy(false);
         setUseAi(false);
+        setConsentOwner(null);
       }
     }
   }
@@ -184,6 +187,21 @@ export function MockInterview() {
     );
   }
 
+  async function openCompleted(item: MockSession) {
+    if (attemptsOwner !== owner) return;
+    const requestOwner = owner;
+    try {
+      const completed = await fetchMockInterview(item.id);
+      if (ownerRef.current !== requestOwner) return;
+      setSession(item);
+      setSessionOwner(requestOwner);
+      setCurrent(null);
+      setReport(completed);
+    } catch {
+      if (ownerRef.current === requestOwner) setError(t.loadError);
+    }
+  }
+
   function resume(item: MockSession) {
     if (item.current === null || attemptsOwner !== owner) return;
     setSession(item);
@@ -194,6 +212,7 @@ export function MockInterview() {
     setAnswer("");
     setError(null);
     setUseAi(false);
+    setConsentOwner(null);
   }
 
   if (!session) {
@@ -203,8 +222,11 @@ export function MockInterview() {
         <label className="mt-4 flex items-start gap-2 text-sm">
           <input
             type="checkbox"
-            checked={useAi}
-            onChange={(event) => setUseAi(event.target.checked)}
+            checked={useAi && consentOwner === owner}
+            onChange={(event) => {
+              setUseAi(event.target.checked);
+              setConsentOwner(event.target.checked ? owner : null);
+            }}
             className="mt-1"
           />
           <span>
@@ -226,6 +248,28 @@ export function MockInterview() {
         >
           {t.backToTrainers}
         </Link>
+        {attemptsOwner === owner &&
+        attempts.some((item) => item.status === "completed") ? (
+          <div className="mt-4">
+            <p className="text-sm font-medium">{t.completed}</p>
+            <ul className="mt-2 space-y-2 text-sm">
+              {attempts
+                .filter((item) => item.status === "completed")
+                .slice(0, 5)
+                .map((item) => (
+                  <li key={item.id}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void openCompleted(item)}
+                    >
+                      {t.openReport} #{item.id}
+                    </Button>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : null}
         {attemptsOwner === owner &&
         attempts.some((item) => item.status === "active" && item.current) ? (
           <div className="mt-4">

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
@@ -23,7 +24,12 @@ def generate_answers(
 ) -> dict[str, int]:
     query = select(InterviewQuestion).order_by(InterviewQuestion.id)
     if not force:
-        query = query.where(InterviewQuestion.reference_answer.is_(None))
+        query = query.where(
+            or_(
+                InterviewQuestion.reference_answer.is_(None),
+                InterviewQuestion.answer_criteria.is_(None),
+            )
+        )
     if ids:
         query = query.where(InterviewQuestion.id.in_(ids))
     if limit:
@@ -38,6 +44,7 @@ def generate_answers(
         db.close()
     generated = 0
     failed = 0
+    deadline = time.monotonic() + 600
     system = (
         "Ты Senior Load Tester и интервьюер. Пиши для начинающего специалиста "
         "простым русским языком, как для 10 класса. Каждый ответ строго по шаблону: "
@@ -50,6 +57,9 @@ def generate_answers(
         '"criteria": ["...", "...", "..."]}]. Без персональных данных.'
     )
     for start in range(0, len(records), batch_size):
+        if time.monotonic() > deadline:
+            failed += len(records) - start
+            break
         chunk = records[start : start + batch_size]
         payload = [
             {

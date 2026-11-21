@@ -262,6 +262,7 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
     safe_text = privacy.anonymize(text)
     chunks = [safe_text[index : index + 12_000] for index in range(0, len(safe_text), 12_000)]
     for chunk in chunks[:10]:
+        before = len(result)
         raw = ai_teacher_service.complete_external(
             system,
             f"Список уроков курса (id: название):\n{lesson_list}\n\nТекст материала:\n"
@@ -305,6 +306,17 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
                     "lesson_id": lesson_id,
                 }
             )
+        if len(result) == before:
+            for item in _heuristic_questions(chunk):
+                result.append(
+                    {
+                        "text": item,
+                        "topic": canonical_topic(None, item),
+                        "difficulty": "junior",
+                        "level": "base",
+                        "lesson_id": None,
+                    }
+                )
     return result or None
 
 
@@ -340,7 +352,7 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSourceR
         stored_name=stored_name,
         media_type=(upload.content_type or "application/octet-stream")[:120],
         size_bytes=len(content),
-        text=text[:500_000],
+        text=privacy.anonymize(text)[:500_000],
         status="extracted",
     )
     bind = db.get_bind()
@@ -352,7 +364,11 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSourceR
         write_db = db
     try:
         write_db.add(source)
-        write_db.commit()
+        try:
+            write_db.commit()
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
         write_db.refresh(source)
         return source_read(write_db, source)
     finally:
