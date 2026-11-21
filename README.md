@@ -330,20 +330,12 @@ dev-зависимостей, запуск без `--reload`, исходники
 появляется флаг `Secure`, поэтому вход работает только по HTTPS.
 
 ```bash
-docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml up -d --build
-docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml exec backend-prod alembic upgrade head
-docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml exec backend-prod python -m app.db.seed
+./infrastructure/deploy.sh
 ```
 
-Последняя команда загружает программу курса и публикует демонстрационный урок:
-на чистой базе без неё страница программы ответит 404.
-
-Frontend для этой проверки запускается на компьютере в production-режиме:
-
-```bash
-npm run build --prefix frontend      # при NEXT_PUBLIC_API_URL=https://localhost:8443
-npm run start --prefix frontend -- -p 13000
-```
+Frontend теперь тоже собирается в контейнере (`frontend/Dockerfile`, Next.js
+standalone), поэтому отдельный `npm run start` не нужен. Скрипт собирает оба
+образа, поднимает стек и проверяет health через Caddy.
 
 Адрес: **https://localhost:8443**. Сертификат выпускает сам Caddy, поэтому браузер
 покажет предупреждение — это ожидаемо для локальной репетиции. Остановить стек:
@@ -353,6 +345,10 @@ docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml down
 ```
 
 Данные этой базы лежат в отдельном томе и с разработкой не пересекаются.
+
+Резервные копии и восстановление: [docs/BACKUP.md](docs/BACKUP.md).
+Секреты и чек-лист: [docs/SECURITY.md](docs/SECURITY.md).
+Нагрузочные ориентиры: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Как остановить проект
 

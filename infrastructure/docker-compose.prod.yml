@@ -74,6 +74,20 @@ services:
       db-prod:
         condition: service_healthy
 
+  frontend-prod:
+    build:
+      context: ../frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${PROD_PUBLIC_URL:-https://localhost:8443}
+    container_name: loadlab-prod-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    expose:
+      - "3000"
+    depends_on:
+      - backend-prod
+
   proxy:
     image: caddy:2.8-alpine
     container_name: loadlab-prod-proxy
@@ -88,6 +102,7 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - backend-prod
+      - frontend-prod
 
 volumes:
   prod_postgres_data:
