@@ -27,10 +27,25 @@ def get_client_ip(request: Request) -> str:
 
 
 def get_optional_user(
+    request: Request,
     token: str | None = Depends(get_session_token),
     db: Session = Depends(get_db),
 ) -> User | None:
-    return auth_service.get_user_by_session_token(db, token) if token else None
+    user = auth_service.get_user_by_session_token(db, token) if token else None
+    expected = request.headers.get("x-loadlab-user")
+    if user is not None and expected is not None:
+        try:
+            if int(expected) != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Сессия изменилась",
+                )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Сессия изменилась",
+            ) from None
+    return user
 
 
 def get_current_user(request: Request, user: User | None = Depends(get_optional_user)) -> User:

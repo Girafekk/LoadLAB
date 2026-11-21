@@ -50,9 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // отправленный до этого момента, уже неактуален.
   const authChangedByUser = useRef(false);
   const versionRef = useRef(0);
+  const userRef = useRef<SessionUser | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
   const applyUser = useCallback((nextUser: SessionUser | null) => {
+    userRef.current = nextUser;
     setApiUser(nextUser?.id ?? null);
     setCurrentUser(nextUser);
     setStatus(nextUser ? "authenticated" : "anonymous");
@@ -71,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         currentUser = await fetchCurrentUser(signal);
       }
       if (authChangedByUser.current) return;
+      if ((currentUser?.id ?? null) !== (userRef.current?.id ?? null)) {
+        versionRef.current += 1;
+        setVersion(versionRef.current);
+      }
       applyUser(currentUser);
     },
     [applyUser],

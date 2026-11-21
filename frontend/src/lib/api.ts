@@ -99,9 +99,11 @@ export type Credentials = {
  * отклонит запись со старым экраном (409), а не сохранит черновик в чужой аккаунт.
  */
 let expectedUserId: number | null = null;
+let sessionStale = false;
 
 export function setApiUser(userId: number | null): void {
   expectedUserId = userId;
+  sessionStale = false;
 }
 
 type ErrorDetail = { field: string; message: string };
@@ -127,6 +129,9 @@ type RequestOptions = {
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, signal } = options;
+  if (sessionStale && method !== "GET") {
+    throw new ApiError(409, "session_changed", "Сессия изменилась");
+  }
 
   let response: Response;
   const requestExpectedUserId = expectedUserId;
@@ -155,6 +160,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
       // Поздний 409 старого запроса не должен сбрасывать уже новый ID.
       if (expectedUserId === requestExpectedUserId) {
         expectedUserId = null;
+        sessionStale = true;
         window.dispatchEvent(new Event("loadlab:session-changed"));
       }
     }
