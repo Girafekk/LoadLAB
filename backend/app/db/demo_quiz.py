@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.curriculum_data import COURSE
-from app.models import Course, Lesson, Module, Quiz, QuizOption, QuizQuestion
+from app.models import Course, Lesson, Quiz, QuizOption, QuizQuestion
 
 DEMO_QUIZ_TITLE = "Проверка понимания: команда и роли"
 
@@ -180,13 +180,9 @@ def publish_demo_quiz(session: Session) -> int:
     if course is None:
         raise RuntimeError("Сначала загрузите структуру курса: python -m app.db.seed")
 
-    lesson = session.scalar(
-        select(Lesson)
-        .join(Module)
-        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
-    )
+    lesson = session.scalar(select(Lesson).where(Lesson.content_key == "w1-l1"))
     if lesson is None:
-        raise RuntimeError("В курсе нет первого урока: проверьте структуру программы")
+        raise RuntimeError("В курсе нет демо-урока w1-l1: проверьте структуру программы")
 
     existing = session.scalar(
         select(func.count()).select_from(Quiz).where(Quiz.lesson_id == lesson.id)

@@ -109,6 +109,16 @@ def seed_curriculum(session: Session, data: CourseData = COURSE) -> SeedResult:
     return SeedResult(courses_created, modules_created, lessons_created)
 
 
+def _demo_lesson(session: Session) -> Lesson | None:
+    """Единственная точка выбора демо-урока для всех фаз обновления."""
+    return session.scalar(
+        select(Lesson)
+        .join(Module)
+        .join(Course)
+        .where(Course.slug == COURSE.slug, Lesson.content_key == "w1-l1")
+    )
+
+
 def clear_demo_content(session: Session) -> None:
     """Удаляет блоки демо-урока и демо-квиз вместе с попытками.
 
@@ -116,16 +126,7 @@ def clear_demo_content(session: Session) -> None:
     обычный сид никогда не меняет существующие строки. Попытки квиза при этом
     удаляются, поэтому команда не предназначена для рабочих баз.
     """
-    lesson = session.scalar(
-        select(Lesson)
-        .join(Module)
-        .join(Course)
-        .where(
-            Course.slug == COURSE.slug,
-            Module.position == 1,
-            Lesson.position == 1,
-        )
-    )
+    lesson = _demo_lesson(session)
     if lesson is None:
         return
     session.execute(delete(LessonBlock).where(LessonBlock.lesson_id == lesson.id))
@@ -138,11 +139,7 @@ def demo_publication_state(session: Session) -> tuple[bool, bool] | None:
     course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
     if course is None:
         return None
-    lesson = session.scalar(
-        select(Lesson)
-        .join(Module)
-        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
-    )
+    lesson = _demo_lesson(session)
     if lesson is None:
         return None
     return course.is_published, lesson.is_published
@@ -157,11 +154,7 @@ def restore_demo_publication(session: Session, state: tuple[bool, bool]) -> None
     course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
     if course is None:
         return
-    lesson = session.scalar(
-        select(Lesson)
-        .join(Module)
-        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
-    )
+    lesson = _demo_lesson(session)
     course.is_published = state[0]
     if lesson is not None:
         lesson.is_published = state[1]
@@ -172,11 +165,7 @@ def demo_quiz_publication_state(session: Session) -> bool | None:
     course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
     if course is None:
         return None
-    lesson = session.scalar(
-        select(Lesson)
-        .join(Module)
-        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
-    )
+    lesson = _demo_lesson(session)
     if lesson is None:
         return None
     quiz = session.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id))
@@ -190,11 +179,7 @@ def restore_quiz_publication(session: Session, was_published: bool | None) -> No
     course = session.scalar(select(Course).where(Course.slug == COURSE.slug))
     if course is None:
         return
-    lesson = session.scalar(
-        select(Lesson)
-        .join(Module)
-        .where(Module.course_id == course.id, Module.position == 1, Lesson.position == 1)
-    )
+    lesson = _demo_lesson(session)
     if lesson is None:
         return
     quiz = session.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id))

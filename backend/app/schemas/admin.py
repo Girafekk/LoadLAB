@@ -129,6 +129,7 @@ class QuizAdminPayload(BaseModel):
     confirm_attempts_loss: bool = False
     # Версия, которую видел администратор: число попыток на момент открытия.
     expected_attempts_count: int | None = Field(default=None, ge=0)
+    expected_quiz_id: int | None = None
 
 
 class QuizAdminRead(BaseModel):

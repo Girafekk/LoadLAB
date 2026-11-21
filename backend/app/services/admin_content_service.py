@@ -467,6 +467,8 @@ def replace_lesson_quiz(db: Session, lesson_id: int, data: QuizAdminPayload) -> 
             )
             or 0
         )
+        if data.expected_quiz_id is not None and data.expected_quiz_id != existing.id:
+            raise AdminConflictError("Квиз уже заменён: обновите редактор")
         if (
             data.expected_attempts_count is not None
             and attempts_count != data.expected_attempts_count
@@ -515,6 +517,7 @@ def delete_lesson_quiz(
     lesson_id: int,
     confirm_attempts_loss: bool = False,
     expected_attempts_count: int | None = None,
+    expected_quiz_id: int | None = None,
 ) -> None:
     lesson = _lesson(db, lesson_id)
     quiz = db.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id).with_for_update())
@@ -526,6 +529,8 @@ def delete_lesson_quiz(
         )
         or 0
     )
+    if expected_quiz_id is not None and expected_quiz_id != quiz.id:
+        raise AdminConflictError("Квиз уже заменён: обновите редактор")
     if expected_attempts_count is not None and attempts_count != expected_attempts_count:
         raise AdminConflictError("Квиз изменился: обновите редактор перед удалением")
     if attempts_count and not confirm_attempts_loss:

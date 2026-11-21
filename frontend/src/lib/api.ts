@@ -465,12 +465,14 @@ export function deleteAdminQuiz(
   lessonId: number,
   confirmAttemptsLoss = false,
   expectedAttemptsCount?: number,
+  expectedQuizId?: number,
 ): Promise<void> {
   const params = new URLSearchParams();
   if (confirmAttemptsLoss) params.set("confirm_attempts_loss", "true");
   if (expectedAttemptsCount !== undefined) {
     params.set("expected_attempts_count", String(expectedAttemptsCount));
   }
+  if (expectedQuizId !== undefined) params.set("expected_quiz_id", String(expectedQuizId));
   const query = params.size ? `?${params.toString()}` : "";
   return apiRequest<void>(`/admin/lessons/${lessonId}/quiz${query}`, {
     method: "DELETE",

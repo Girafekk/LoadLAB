@@ -80,6 +80,7 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
   const [quizPublished, setQuizPublished] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attemptsCount, setAttemptsCount] = useState(0);
+  const [quizId, setQuizId] = useState<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -101,6 +102,7 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
         );
         setQuizExists(Boolean(quizData));
         if (quizData) {
+          setQuizId(quizData.id);
           setQuizTitle(quizData.title);
           setQuizDescription(quizData.description ?? "");
           setQuizPublished(quizData.is_published);
@@ -279,6 +281,7 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
         questions,
         confirm_attempts_loss: losesAttempts,
         expected_attempts_count: attemptsCount,
+        expected_quiz_id: quizId ?? undefined,
       });
       setQuizExists(true);
       setAttemptsCount(0);
@@ -293,10 +296,11 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
     if (!lesson || !window.confirm(t.deleteQuizConfirm)) return;
     setError(null);
     try {
-      await deleteAdminQuiz(lesson.id, true, attemptsCount);
+      await deleteAdminQuiz(lesson.id, true, attemptsCount, quizId ?? undefined);
       setQuizExists(false);
       setQuestions([]);
       setAttemptsCount(0);
+      setQuizId(null);
       setLesson({ ...lesson, quiz_id: null });
     } catch (error) {
       setError(adminErrorMessage(error));

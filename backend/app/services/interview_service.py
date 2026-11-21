@@ -432,11 +432,7 @@ def analyze_source(
                 )
             )
         )
-        write_db.execute(
-            InterviewQuestionSource.__table__.delete().where(
-                InterviewQuestionSource.source_id == source_id
-            )
-        )
+        # Старые вклады не удаляем до успешного разрешения всех формулировок.
         counts = Counter(_fingerprint(_clean_text(str(item["text"]))[:1_000]) for item in extracted)
         seen: set[str] = set()
         resolved_counts: dict[int, int] = {}
@@ -476,6 +472,14 @@ def analyze_source(
                 write_db.flush()
                 created += 1
             resolved_counts[question.id] = resolved_counts.get(question.id, 0) + counts[fingerprint]
+        touched = set(resolved_counts)
+        if touched:
+            write_db.execute(
+                InterviewQuestionSource.__table__.delete().where(
+                    InterviewQuestionSource.source_id == source_id,
+                    InterviewQuestionSource.question_id.in_(touched),
+                )
+            )
         for question_id, occurrences in resolved_counts.items():
             write_db.add(
                 InterviewQuestionSource(

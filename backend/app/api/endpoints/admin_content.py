@@ -230,6 +230,7 @@ def delete_quiz(
     lesson_id: int,
     confirm_attempts_loss: bool = Query(default=False),
     expected_attempts_count: int | None = Query(default=None, ge=0),
+    expected_quiz_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> Response:
     try:
@@ -238,6 +239,7 @@ def delete_quiz(
             lesson_id,
             confirm_attempts_loss=confirm_attempts_loss,
             expected_attempts_count=expected_attempts_count,
+            expected_quiz_id=expected_quiz_id,
         )
     except admin_content_service.AdminNotFoundError:
         raise _not_found() from None
