@@ -129,10 +129,18 @@ type RequestOptions = {
   signal?: AbortSignal;
   headers?: Record<string, string>;
   skipUserHeader?: boolean;
+  credentials?: RequestCredentials;
 };
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, signal, headers: extraHeaders, skipUserHeader } = options;
+  const {
+    method = "GET",
+    body,
+    signal,
+    headers: extraHeaders,
+    skipUserHeader,
+    credentials = "include",
+  } = options;
   if (sessionStale && method !== "GET") {
     throw new ApiError(409, "session_changed", "Сессия изменилась");
   }
@@ -153,13 +161,20 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
       method,
       signal,
       cache: "no-store",
-      credentials: "include",
+      credentials,
       headers: body === undefined && expectedUserId === null ? undefined : headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch (error) {
     if (signal?.aborted) throw error;
+    if (requestGeneration !== sessionGeneration) {
+      throw new ApiError(409, "session_changed", "Сессия изменилась");
+    }
     throw new ApiError(0, "network_error", "Не удалось связаться с сервером");
+  }
+
+  if (requestGeneration !== sessionGeneration) {
+    throw new ApiError(409, "session_changed", "Сессия изменилась");
   }
 
   if (!response.ok) {
@@ -223,8 +238,15 @@ export async function fetchCurrentUser(signal?: AbortSignal): Promise<SessionUse
 }
 
 /** Программа курса с опубликованными уроками. Гость получает `progress: null`. */
-export function fetchCourse(signal?: AbortSignal): Promise<CourseOverview> {
-  return apiRequest<CourseOverview>("/courses/current", { signal });
+export function fetchCourse(
+  signal?: AbortSignal,
+  authenticated = true,
+): Promise<CourseOverview> {
+  return apiRequest<CourseOverview>("/courses/current", {
+    signal,
+    credentials: authenticated ? "include" : "omit",
+    skipUserHeader: !authenticated,
+  });
 }
 
 /**

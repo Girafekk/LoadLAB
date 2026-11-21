@@ -99,8 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
 
     refresh(controller.signal).catch(() => {
-      // Сервер недоступен: считаем посетителя гостем, но при возврате
-      // фокуса или сообщении из другой вкладки попробуем снова.
+      // Только самая первая сверка может выставить гостя: поздняя ошибка
+      // не должна перебить уже полученный новый вход.
+      if (refreshSeq.current !== 1) return;
       if (!authChangedByUser.current && !controller.signal.aborted) {
         setStatus("anonymous");
       }

@@ -215,7 +215,7 @@ def test_deactivated_user_loses_access(api_client, db_session):
     assert api_client.get("/api/v1/auth/me").status_code == 401
 
 
-def test_logout_deletes_session_and_clears_cookie(api_client, db_session):
+def test_logout_deletes_session_without_touching_new_cookie(api_client, db_session):
     register(api_client)
     token = api_client.cookies[COOKIE_NAME]
     assert _session_count(db_session) == 1
@@ -223,8 +223,9 @@ def test_logout_deletes_session_and_clears_cookie(api_client, db_session):
     response = api_client.post("/api/v1/auth/logout")
 
     assert response.status_code == 204
-    assert f'{COOKIE_NAME}=""' in response.headers["set-cookie"]
-    assert "max-age=0" in response.headers["set-cookie"].lower()
+    # Cookie не очищается намеренно: запоздалый ответ старой вкладки
+    # не должен удалить cookie нового входа.
+    assert "set-cookie" not in response.headers
     assert _session_count(db_session) == 0
     assert api_client.get("/api/v1/auth/me").status_code == 401
 

@@ -16,7 +16,7 @@ import { describeAuthError, validateEmail } from "@/lib/auth-forms";
 const { fields, login: text, errors } = authContent;
 
 export function LoginForm() {
-  const { setUser } = useAuth();
+  const { setUser, version } = useAuth();
   const { withNext } = useAuthRedirect();
 
   const [email, setEmail] = useState("");
@@ -36,10 +36,13 @@ export function LoginForm() {
     if (nextErrors.email || nextErrors.password) return;
 
     setSubmitting(true);
+    const startVersion = version;
     try {
-      // После setUser переход выполнит useAuthRedirect.
-      setUser(await loginUser({ email, password }));
+      const user = await loginUser({ email, password });
+      if (version !== startVersion) return;
+      setUser(user);
     } catch (error) {
+      if (version !== startVersion) return;
       setFormError(describeAuthError(error));
       setSubmitting(false);
     }

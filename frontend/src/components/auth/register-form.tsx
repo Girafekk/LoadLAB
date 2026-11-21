@@ -22,7 +22,7 @@ type FieldErrors = {
 };
 
 export function RegisterForm() {
-  const { setUser } = useAuth();
+  const { setUser, version } = useAuth();
   const { withNext } = useAuthRedirect();
 
   const [email, setEmail] = useState("");
@@ -44,10 +44,13 @@ export function RegisterForm() {
     if (nextErrors.email || nextErrors.password || nextErrors.passwordRepeat) return;
 
     setSubmitting(true);
+    const startVersion = version;
     try {
-      // После setUser переход выполнит useAuthRedirect.
-      setUser(await registerUser({ email, password }));
+      const user = await registerUser({ email, password });
+      if (version !== startVersion) return;
+      setUser(user);
     } catch (error) {
+      if (version !== startVersion) return;
       setFormError(describeAuthError(error));
       setSubmitting(false);
     }

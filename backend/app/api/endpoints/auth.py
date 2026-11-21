@@ -140,7 +140,8 @@ def logout(
             )
     if token:
         auth_service.delete_session(db, token)
-    _clear_session_cookie(response, settings)
+    # Cookie не очищаем: запоздалый ответ выхода старой вкладки не должен
+    # удалить cookie уже нового входа. Сессия на сервере уже отозвана.
 
 
 @router.get(

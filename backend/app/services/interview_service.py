@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import multiprocessing
 import re
 import time
 import uuid
@@ -334,6 +335,36 @@ def _fingerprint(text: str) -> str:
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
+def _extract_worker(path: Path, suffix: str, deadline: float, queue) -> None:
+    try:
+        queue.put(("ok", _extract_text(path, suffix, deadline)))
+    except Exception as error:  # noqa: BLE001 — текст ошибки нужен родителю
+        queue.put(("error", str(error)))
+
+
+def _extract_isolated(path: Path, suffix: str, timeout: float = 35) -> str:
+    """Жёстко обрывает зависший парсер в отдельном процессе."""
+    context = multiprocessing.get_context("spawn")
+    queue = context.Queue()
+    process = context.Process(
+        target=_extract_worker,
+        args=(path, suffix, time.monotonic() + 30, queue),
+        daemon=True,
+    )
+    process.start()
+    process.join(timeout)
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
+        raise InterviewError("Извлечение текста превысило 30 секунд")
+    if queue.empty():
+        raise InterviewError("Не удалось извлечь текст из файла")
+    status, payload = queue.get()
+    if status != "ok":
+        raise InterviewError("Не удалось извлечь текст из файла")
+    return str(payload)
+
+
 def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSourceRead:
     content = upload.file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
@@ -347,7 +378,7 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSourceR
     target = _upload_dir() / stored_name
     try:
         target.write_bytes(content)
-        text = _clean_text(_extract_text(target, suffix, time.monotonic() + 30))
+        text = _clean_text(_extract_isolated(target, suffix))
         if not text:
             raise InterviewError("В файле не найден текст")
     except Exception as error:

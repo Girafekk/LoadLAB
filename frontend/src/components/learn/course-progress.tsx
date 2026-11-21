@@ -37,7 +37,7 @@ export function CourseProgress() {
     if (authStatus === "loading") return;
     const id = ++requestId.current;
     const controller = new AbortController();
-    fetchCourse(controller.signal)
+    fetchCourse(controller.signal, authStatus === "authenticated")
       .then((data) => {
         if (requestId.current !== id) return;
         setCourse(data);
