@@ -100,10 +100,12 @@ export type Credentials = {
  */
 let expectedUserId: number | null = null;
 let sessionStale = false;
+let sessionGeneration = 0;
 
 export function setApiUser(userId: number | null): void {
   expectedUserId = userId;
   sessionStale = false;
+  sessionGeneration += 1;
 }
 
 type ErrorDetail = { field: string; message: string };
@@ -140,6 +142,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
 
   let response: Response;
   const requestExpectedUserId = expectedUserId;
+  const requestGeneration = sessionGeneration;
   try {
     const headers: Record<string, string> = { ...extraHeaders };
     if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -169,7 +172,10 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     ) {
       // Сначала снимаем устаревший заголовок: иначе /auth/me повторит его.
       // Поздний 409 старого запроса не должен сбрасывать уже новый ID.
-      if (expectedUserId === requestExpectedUserId) {
+      if (
+        expectedUserId === requestExpectedUserId &&
+        sessionGeneration === requestGeneration
+      ) {
         expectedUserId = null;
         sessionStale = true;
         window.dispatchEvent(new Event("loadlab:session-changed"));
@@ -587,6 +593,7 @@ export async function uploadInterviewSource(file: File): Promise<InterviewSource
     throw new ApiError(409, "session_changed", "Сессия изменилась");
   }
   const form = new FormData();
+  const requestGeneration = sessionGeneration;
   form.append("file", file);
   const headers: Record<string, string> = {};
   if (expectedUserId !== null) headers["X-LoadLab-User"] = String(expectedUserId);
@@ -607,6 +614,7 @@ export async function uploadInterviewSource(file: File): Promise<InterviewSource
     if (
       response.status === 409 &&
       response.headers.get("x-session-changed") === "1" &&
+      sessionGeneration === requestGeneration &&
       typeof window !== "undefined"
     ) {
       expectedUserId = null;

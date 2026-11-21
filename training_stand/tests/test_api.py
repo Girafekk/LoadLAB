@@ -7,7 +7,9 @@ from app.main import app, reset_database
 
 def client() -> TestClient:
     reset_database()
-    return TestClient(app)
+    test_client = TestClient(app)
+    test_client.headers.update({"Origin": "http://testserver"})
+    return test_client
 
 
 def login(test_client: TestClient, email: str = "student1@example.com") -> str:

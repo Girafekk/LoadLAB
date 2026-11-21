@@ -80,6 +80,18 @@ def _lesson(db: Session, lesson_id: int) -> Lesson:
     return lesson
 
 
+def _locked_lesson(db: Session, lesson_id: int) -> Lesson:
+    """Блокирует урок на время замены/удаления квиза.
+
+    Строка урока существует всегда, поэтому она сериализует и создание,
+    когда строки квиза ещё нет.
+    """
+    lesson = db.scalar(select(Lesson).where(Lesson.id == lesson_id).with_for_update())
+    if lesson is None:
+        raise AdminNotFoundError
+    return lesson
+
+
 def _counts(db: Session, course_id: int) -> tuple[int, int]:
     modules = int(
         db.scalar(select(func.count()).select_from(Module).where(Module.course_id == course_id))
@@ -452,7 +464,7 @@ def replace_lesson_quiz(db: Session, lesson_id: int, data: QuizAdminPayload) -> 
     Замена вопросов удаляет прежние попытки: они ссылаются на старые варианты.
     Интерфейс предупреждает администратора об этом до сохранения.
     """
-    lesson = _lesson(db, lesson_id)
+    lesson = _locked_lesson(db, lesson_id)
     for question in data.questions:
         if not any(option.is_correct for option in question.options):
             raise AdminValidationError("В каждом вопросе должен быть верный вариант")
@@ -477,6 +489,8 @@ def replace_lesson_quiz(db: Session, lesson_id: int, data: QuizAdminPayload) -> 
             raise AdminConflictError("Обновите редактор: не передан ID версии квиза")
         if data.expected_quiz_id != existing.id:
             raise AdminConflictError("Квиз уже заменён: обновите редактор")
+        if data.expected_attempts_count is None:
+            raise AdminConflictError("Обновите редактор: не передан счётчик попыток")
         if (
             data.expected_attempts_count is not None
             and attempts_count != data.expected_attempts_count
@@ -523,7 +537,7 @@ def delete_lesson_quiz(
     expected_attempts_count: int | None = None,
     expected_quiz_id: int | None = None,
 ) -> None:
-    lesson = _lesson(db, lesson_id)
+    lesson = _locked_lesson(db, lesson_id)
     quiz = db.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id).with_for_update())
     if quiz is None:
         raise AdminNotFoundError
@@ -533,6 +547,8 @@ def delete_lesson_quiz(
         )
         or 0
     )
+    if expected_attempts_count is None:
+        raise AdminConflictError("Обновите редактор: не передан счётчик попыток")
     if attempts_count and not confirm_attempts_loss:
         raise AdminConflictError(
             f"У квиза {attempts_count} попыток учеников. Подтвердите удаление истории."

@@ -248,7 +248,9 @@ def lesson_options(db: Session) -> list[Lesson]:
     return _lesson_choices(db)
 
 
-def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[str, object]] | None:
+def _ai_questions(
+    db: Session, text: str, lessons: list[Lesson]
+) -> tuple[list[dict[str, object]] | None, bool]:
     lesson_list = "\n".join(f"{item.id}: {privacy.anonymize(item.title)}" for item in lessons)
     system = (
         "Ты аналитик учебного контента. Извлеки из текста вопросы собеседования "
@@ -259,6 +261,7 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
     )
     valid_ids = {item.id for item in lessons}
     result: list[dict[str, object]] = []
+    complete = True
     safe_text = privacy.anonymize(text)
     chunks = [safe_text[index : index + 12_000] for index in range(0, len(safe_text), 12_000)]
     for chunk in chunks[:10]:
@@ -270,16 +273,21 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
             timeout=60,
         )
         if not raw:
-            continue
-        match = re.search(r"\[.*\]", raw, re.DOTALL)
+            complete = False
+            raw = ""
+        match = re.search(r"\[.*\]", raw, re.DOTALL) if raw else None
         if match is None:
-            continue
-        try:
-            data = json.loads(match.group(0))
-        except json.JSONDecodeError:
-            continue
+            complete = False
+            data = []
+        else:
+            try:
+                data = json.loads(match.group(0))
+            except json.JSONDecodeError:
+                complete = False
+                data = []
         if not isinstance(data, list):
-            continue
+            complete = False
+            data = []
         for item in data:
             if not isinstance(item, dict):
                 continue
@@ -307,6 +315,7 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
                 }
             )
         if len(result) == before:
+            complete = False
             for item in _heuristic_questions(chunk):
                 result.append(
                     {
@@ -317,7 +326,7 @@ def _ai_questions(db: Session, text: str, lessons: list[Lesson]) -> list[dict[st
                         "lesson_id": None,
                     }
                 )
-    return result or None
+    return (result or None), complete
 
 
 def _fingerprint(text: str) -> str:
@@ -414,16 +423,32 @@ def analyze_source(
     else:
         write_db = db
     try:
-        extracted = (_ai_questions(write_db, text, lessons) if allow_external else None) or [
-            {
-                "text": item,
-                "topic": "Общее",
-                "difficulty": "junior",
-                "level": "base",
-                "lesson_id": None,
-            }
-            for item in _heuristic_questions(text)
-        ]
+        if allow_external:
+            extracted, complete = _ai_questions(write_db, text, lessons)
+            if not extracted:
+                extracted = [
+                    {
+                        "text": item,
+                        "topic": "Общее",
+                        "difficulty": "junior",
+                        "level": "base",
+                        "lesson_id": None,
+                    }
+                    for item in _heuristic_questions(text)
+                ]
+                complete = False
+        else:
+            extracted = [
+                {
+                    "text": item,
+                    "topic": "Общее",
+                    "difficulty": "junior",
+                    "level": "base",
+                    "lesson_id": None,
+                }
+                for item in _heuristic_questions(text)
+            ]
+            complete = True
         # Повторный разбор источника не должен накапливать его же дубли.
         # Сериализуем переразбор одного источника: вклады и occurrences
         # не должны считаться двумя транзакциями одновременно.
@@ -478,7 +503,17 @@ def analyze_source(
                 created += 1
             resolved_counts[question.id] = resolved_counts.get(question.id, 0) + counts[fingerprint]
         touched = set(resolved_counts)
-        if touched:
+        locked_ids = sorted(touched | old_ids)
+        if locked_ids:
+            list(
+                write_db.scalars(
+                    select(InterviewQuestion)
+                    .where(InterviewQuestion.id.in_(locked_ids))
+                    .order_by(InterviewQuestion.id)
+                    .with_for_update()
+                )
+            )
+        if complete and touched:
             write_db.execute(
                 InterviewQuestionSource.__table__.delete().where(
                     InterviewQuestionSource.source_id == source_id,
@@ -486,6 +521,12 @@ def analyze_source(
                 )
             )
         for question_id, occurrences in resolved_counts.items():
+            if not complete:
+                existing_contribution = write_db.get(
+                    InterviewQuestionSource, (question_id, source_id)
+                )
+                if existing_contribution is not None:
+                    continue
             write_db.add(
                 InterviewQuestionSource(
                     question_id=question_id,
@@ -511,7 +552,12 @@ def analyze_source(
                 question.occurrences = int(total or 0)
         source_row = write_db.get(InterviewSource, source_id)
         if source_row is not None:
-            source_row.status = "analyzed"
+            source_row.status = "analyzed" if complete else "partial"
+            if not complete:
+                source_row.error = (
+                    "Часть фрагментов не разобрана внешним AI. "
+                    "Прежние вклады сохранены, запустите разбор ещё раз."
+                )
             if len(text) > 120_000:
                 source_row.error = (
                     f"Материал длиннее 120 000 символов: разобраны первые 120 000 "

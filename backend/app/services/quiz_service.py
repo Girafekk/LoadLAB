@@ -239,6 +239,7 @@ def submit_attempt(
         raise QuizNotFoundError
     _ensure_valid_content(quiz)
 
+    selected = _validate_answers(quiz.questions, data.answers)
     if data.client_token:
         existing = db.scalar(
             select(QuizAttempt).where(
@@ -248,9 +249,13 @@ def submit_attempt(
             )
         )
         if existing is not None:
+            stored = {
+                item.question_id: {option.id for option in item.selected_options}
+                for item in existing.answers
+            }
+            if stored != selected:
+                raise QuizDuplicateError("С этим ключом уже сохранён другой набор ответов")
             return _attempt_result(existing)
-
-    selected = _validate_answers(quiz.questions, data.answers)
     recent = db.scalar(
         select(QuizAttempt)
         .where(QuizAttempt.quiz_id == quiz.id, QuizAttempt.user_id == user.id)

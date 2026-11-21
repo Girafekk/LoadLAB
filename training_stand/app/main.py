@@ -47,7 +47,7 @@ def _require_same_origin(request: Request) -> None:
     """Cookie-операции принимаются только со страницы самого стенда."""
     origin = request.headers.get("origin")
     if origin is None:
-        return
+        raise HTTPException(status_code=403, detail="Не указан Origin")
     host = request.headers.get("host", "")
     allowed = {f"http://{host}", f"https://{host}"}
     if origin not in allowed:
@@ -226,6 +226,8 @@ def current_user(
         token = authorization.split(" ", 1)[1].strip()
     if token is None:
         token = request.cookies.get("stand_token")
+        if token is not None and request.method not in {"GET", "HEAD", "OPTIONS"}:
+            _require_same_origin(request)
     with db() as connection:
         user = _user_from_token(connection, token)
     if user is None:
@@ -612,7 +614,10 @@ def create_app() -> FastAPI:
         )
 
     @app.post("/ui/login")
-    def ui_login(email: str = Form(...), password: str = Form(...)) -> RedirectResponse:
+    def ui_login(
+        request: Request, email: str = Form(...), password: str = Form(...)
+    ) -> RedirectResponse:
+        _require_same_origin(request)
         with db() as connection:
             user = connection.execute(
                 "SELECT * FROM users WHERE email = ?", (email.lower(),)

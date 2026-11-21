@@ -289,6 +289,7 @@ def test_admin_quiz_save_requires_confirmation_when_attempts_exist(api_client, d
             **payload,
             "confirm_attempts_loss": True,
             "expected_quiz_id": quiz_id,
+            "expected_attempts_count": 1,
         },
     )
     assert confirmed.status_code == 200
@@ -393,6 +394,7 @@ def test_admin_delete_quiz_requires_confirmation(api_client, db_session):
         api_client.delete(
             f"/api/v1/admin/lessons/{lesson_id}/quiz"
             f"?confirm_attempts_loss=true&expected_quiz_id={quiz_id}"
+            "&expected_attempts_count=1"
         ).status_code
         == 204
     )
