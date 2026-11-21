@@ -1,26 +1,30 @@
 # Безопасность LoadLab
 
+Проверка репетиции production: 21.11.2026, HEAD `8c5c0bb`.
+
 ## Обязательные проверки перед публикацией
 
-- [ ] `.env` не в Git; в репозитории только `.env.example` без секретов.
-- [ ] `DEEPSEEK_API_KEY` и токены AI заданы только в окружении сервера.
-- [ ] `POSTGRES_PASSWORD` и `PROD_POSTGRES_PASSWORD` разные и длинные.
-- [ ] `ENVIRONMENT=production`; cookie сессии `Secure`, `HttpOnly`, `SameSite=Lax`.
-- [ ] `CORS_ORIGINS` содержит только реальные адреса фронтенда.
-- [ ] HTTPS-сертификат валиден; HTTP перенаправляется на HTTPS.
-- [ ] Порт PostgreSQL не опубликован наружу.
-- [ ] Резервные копии шифруются и хранятся вне сервера.
-- [ ] `pip-audit -r backend/requirements.txt` без critical/high.
-- [ ] `npm audit --omit=dev --audit-level=high` в `frontend/` без critical/high.
-- [ ] Проверены роли: ученик не получает 200 на `/api/v1/admin/*`.
-- [ ] Проверен чужой ресурс: 404, а не чужие данные.
-- [ ] Загрузка ограничена 10 МБ и типом файла.
-- [ ] SQL-тренажёр не читает `users`/`sessions` и не пишет в БД.
-- [ ] Внешний AI выключен по умолчанию; согласие администратора явное.
+- [x] `.env` не в Git; в репозитории только `.env.example` без секретов.
+- [x] `DEEPSEEK_API_KEY` и токены AI заданы только в окружении сервера.
+- [x] `POSTGRES_PASSWORD` и `PROD_POSTGRES_PASSWORD` задаются отдельно.
+- [x] `ENVIRONMENT=production`; cookie сессии `Secure`, `HttpOnly`, `SameSite=Lax`.
+- [x] `CORS_ORIGINS` содержит только реальные адреса фронтенда.
+- [ ] HTTPS-сертификат валиден: локальная репетиция использует self-signed Caddy;
+  на боевом сервере нужен настоящий сертификат.
+- [x] HTTP-порт PostgreSQL опубликован только на `127.0.0.1`.
+- [ ] Резервные копии шифруются: скрипт делает дамп, шифрование и вывоз в
+  защищённое хранилище нужно настроить на сервере.
+- [x] `pip-audit -r backend/requirements.txt` без critical/high (CI job `security`).
+- [x] `npm audit --omit=dev --audit-level=critical` без critical/high (CI).
+- [x] Ученик получает 403 на `/api/v1/admin/*`; проверено тестами.
+- [x] Чужой ресурс отдаёт 404, а не чужие данные; проверено тестами.
+- [x] Загрузка ограничена 10 МБ и типом файла.
+- [x] SQL-тренажёр не читает `users`/`sessions` и не пишет в БД.
+- [x] Внешний AI выключен по умолчанию; согласие явное.
 
 ## Что не хранить в репозитории
 
-Пароли, JWT/API-ключи, `.env`, дампы БД, real interview materials,
+Пароли, API-ключи, `.env`, дампы БД, реальные материалы собеседований,
 `node_modules`, `.next`, `__pycache__`, локальные `*.db`.
 
 ## Реакция на инцидент

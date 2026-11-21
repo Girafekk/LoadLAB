@@ -7,7 +7,7 @@ https://localhost:8443 {
 	tls internal
 	encode gzip
 
-	# API уходит в контейнер backend, остальное — на frontend компьютера.
+	# API уходит в контейнер backend, остальное — в контейнер frontend-prod.
 	handle /api/* {
 		reverse_proxy backend-prod:8000
 	}

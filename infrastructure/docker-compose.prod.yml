@@ -11,9 +11,8 @@
 #     работает только по HTTPS — перед сервисами стоит Caddy с локальным сертификатом;
 #   - база данных отдельная, со своим томом.
 #
-# Frontend для этой репетиции запускается на компьютере в production-режиме:
-#   npm run build && npm run start -- -p 13000
-# при сборке NEXT_PUBLIC_API_URL=https://localhost:8443 (тот же адрес, что у прокси).
+# Frontend собирается в отдельном контейнере frontend-prod (standalone Next.js)
+# и проксируется Caddy; отдельный `npm start` на компьютере не нужен.
 
 services:
   db-prod:
