@@ -172,8 +172,14 @@ def _extract_text(path: Path, suffix: str, deadline: float | None = None) -> str
             pages.append(page.extract_text() or "")
         return "\n".join(pages)
     if suffix == ".docx":
+        import zipfile
+
         from docx import Document
 
+        with zipfile.ZipFile(path) as archive:
+            unpacked = sum(item.file_size for item in archive.infolist())
+        if unpacked > 50 * 1024 * 1024:
+            raise InterviewError("DOCX распаковывается больше 50 МБ")
         document = Document(str(path))
         if len(document.paragraphs) > MAX_DOCX_PARAGRAPHS:
             raise InterviewError("В DOCX больше 5000 абзацев")
@@ -189,8 +195,8 @@ def _extract_text(path: Path, suffix: str, deadline: float | None = None) -> str
         from PIL import Image
 
         Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+        check_deadline()
         with Image.open(path) as image:
-            check_deadline()
             return pytesseract.image_to_string(image, lang="rus+eng", timeout=30)
     raise InterviewError("Неподдерживаемый формат файла")
 
@@ -307,7 +313,7 @@ def _fingerprint(text: str) -> str:
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
-def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSource:
+def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSourceRead:
     content = upload.file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
         raise InterviewTooLarge("Файл больше 10 МБ")
@@ -337,10 +343,21 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSource:
         text=text[:500_000],
         status="extracted",
     )
-    db.add(source)
-    db.commit()
-    db.refresh(source)
-    return source
+    bind = db.get_bind()
+    separate = isinstance(bind, Engine)
+    if separate:
+        db.close()
+        write_db = Session(bind=bind)
+    else:
+        write_db = db
+    try:
+        write_db.add(source)
+        write_db.commit()
+        write_db.refresh(source)
+        return source_read(write_db, source)
+    finally:
+        if separate:
+            write_db.close()
 
 
 def source_read(db: Session, source: InterviewSource) -> InterviewSourceRead:
@@ -558,7 +575,9 @@ def _guess_lesson(lessons: list[Lesson], topic: str) -> int | None:
 
 def deduplicate(db: Session, threshold: float = 0.9) -> int:
     """Объединяет смысловые повторы, сохраняя лучший статус и число встреч."""
-    questions = list(db.scalars(select(InterviewQuestion).order_by(InterviewQuestion.id)))
+    questions = list(
+        db.scalars(select(InterviewQuestion).order_by(InterviewQuestion.id).with_for_update())
+    )
     normalized = [re.sub(r"\W+", " ", item.text.casefold()).strip() for item in questions]
     removed: set[int] = set()
     for index, question in enumerate(questions):

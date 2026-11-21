@@ -18,6 +18,7 @@ export function MockInterview() {
   }, [owner]);
   const [sessionOwner, setSessionOwner] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<MockSession[]>([]);
+  const [attemptsOwner, setAttemptsOwner] = useState<string | null>(null);
   const [session, setSession] = useState<MockSession | null>(null);
   const [current, setCurrent] = useState<MockQuestion | null>(null);
   const [answer, setAnswer] = useState("");
@@ -33,10 +34,16 @@ export function MockInterview() {
     const controller = new AbortController();
     fetchMockInterviews()
       .then((items) => {
-        if (ownerRef.current === requestOwner) setAttempts(items);
+        if (ownerRef.current === requestOwner) {
+          setAttempts(items);
+          setAttemptsOwner(requestOwner);
+        }
       })
       .catch(() => {
-        if (ownerRef.current === requestOwner) setAttempts([]);
+        if (ownerRef.current === requestOwner) {
+          setAttempts([]);
+          setAttemptsOwner(requestOwner);
+        }
       });
     return () => controller.abort();
   }, [status, owner]);
@@ -178,7 +185,7 @@ export function MockInterview() {
   }
 
   function resume(item: MockSession) {
-    if (item.current === null) return;
+    if (item.current === null || attemptsOwner !== owner) return;
     setSession(item);
     setSessionOwner(owner);
     setCurrent(item.current);
@@ -219,7 +226,8 @@ export function MockInterview() {
         >
           {t.backToTrainers}
         </Link>
-        {attempts.some((item) => item.status === "active" && item.current) ? (
+        {attemptsOwner === owner &&
+        attempts.some((item) => item.status === "active" && item.current) ? (
           <div className="mt-4">
             <p className="text-sm font-medium">{t.continueTitle}</p>
             <ul className="mt-2 space-y-2 text-sm">

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 /** Защита страниц админки на клиенте. Настоящая проверка — на сервере. */
 export function AdminShell({ children }: { children: ReactNode }) {
-  const { status, user } = useAuth();
+  const { status, user, version } = useAuth();
 
   if (status === "loading") {
     return <p className="text-sm text-muted-foreground">{t.loading}</p>;
@@ -52,7 +52,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
           {t.interview}
         </Link>
       </nav>
-      <div className="mt-6">{children}</div>
+      <div key={`${user.id}:${version}`} className="mt-6">
+        {children}
+      </div>
     </div>
   );
 }

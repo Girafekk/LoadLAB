@@ -31,12 +31,11 @@ def upload_source(
     db: Session = Depends(get_db),
 ) -> InterviewSourceRead:
     try:
-        source = interview_service.save_source(db, user, file)
+        return interview_service.save_source(db, user, file)
     except interview_service.InterviewTooLarge as error:
         raise HTTPException(status_code=413, detail=str(error)) from None
     except interview_service.InterviewError as error:
         raise HTTPException(status_code=422, detail=str(error)) from None
-    return interview_service.source_read(db, source)
 
 
 @router.get("/sources", response_model=list[InterviewSourceRead])

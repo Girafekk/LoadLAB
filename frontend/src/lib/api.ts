@@ -129,6 +129,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   const { method = "GET", body, signal } = options;
 
   let response: Response;
+  const requestExpectedUserId = expectedUserId;
   try {
     const headers: Record<string, string> = {};
     if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -150,10 +151,12 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
     const payload = await response.json().catch(() => null);
     const error = payload?.error;
     if (response.status === 409 && typeof window !== "undefined") {
-      // Сначала снимаем устаревший заголовок: иначе /auth/me повторит его
-      // и снова получит 409.
-      expectedUserId = null;
-      window.dispatchEvent(new Event("loadlab:session-changed"));
+      // Сначала снимаем устаревший заголовок: иначе /auth/me повторит его.
+      // Поздний 409 старого запроса не должен сбрасывать уже новый ID.
+      if (expectedUserId === requestExpectedUserId) {
+        expectedUserId = null;
+        window.dispatchEvent(new Event("loadlab:session-changed"));
+      }
     }
     throw new ApiError(
       response.status,
