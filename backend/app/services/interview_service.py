@@ -343,7 +343,7 @@ def _extract_worker(path: Path, suffix: str, deadline: float, output: Path) -> N
         output.write_text("", encoding="utf-8")
 
 
-def _extract_isolated(path: Path, suffix: str, timeout: float = 35) -> str:
+def _extract_isolated(path: Path, suffix: str, timeout: float = 30) -> str:
     """Жёстко обрывает зависший парсер в отдельном процессе."""
     context = multiprocessing.get_context("spawn")
     handle = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
@@ -351,7 +351,7 @@ def _extract_isolated(path: Path, suffix: str, timeout: float = 35) -> str:
     handle.close()
     process = context.Process(
         target=_extract_worker,
-        args=(path, suffix, time.monotonic() + 30, output),
+        args=(path, suffix, time.monotonic() + timeout, output),
         daemon=True,
     )
     try:
@@ -359,11 +359,11 @@ def _extract_isolated(path: Path, suffix: str, timeout: float = 35) -> str:
         process.join(timeout)
         if process.is_alive():
             process.terminate()
-            process.join(5)
+            process.join(2)
             if process.is_alive():
                 process.kill()
                 process.join(1)
-            raise InterviewError("Извлечение текста превысило 30 секунд")
+            raise InterviewError("Извлечение текста превысило лимит времени")
         if process.exitcode != 0:
             raise InterviewError("Не удалось извлечь текст из файла")
         return output.read_text(encoding="utf-8")

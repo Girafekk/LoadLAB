@@ -66,13 +66,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const seq = ++refreshSeq.current;
       let currentUser: SessionUser | null;
       try {
-        currentUser = await fetchCurrentUser(signal);
+        try {
+          currentUser = await fetchCurrentUser(signal);
+        } catch (error) {
+          // Один повтор для временного сбоя сети.
+          if (signal?.aborted) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          currentUser = await fetchCurrentUser(signal);
+        }
       } catch (error) {
-        // Один повтор для временного сбоя сети: иначе секундная недоступность
-        // сервера выглядит как «вы не вошли».
-        if (signal?.aborted) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        currentUser = await fetchCurrentUser(signal);
+        if (seq === refreshSeq.current && !authChangedByUser.current) {
+          setStatus("anonymous");
+        }
+        throw error;
       }
       if (seq !== refreshSeq.current) return;
       if (authChangedByUser.current) return;
@@ -112,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       channel = new BroadcastChannel(AUTH_CHANNEL);
       channel.onmessage = () => {
         authChangedByUser.current = false;
+        bumpVersion();
         refresh().catch(() => undefined);
       };
     }
@@ -125,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const onSessionChanged = () => {
       // Сервер отклонил запрос старого экрана: перечитываем владельца сессии.
       authChangedByUser.current = false;
+      bumpVersion();
       refresh().catch(() => undefined);
     };
 
@@ -138,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("loadlab:session-changed", onSessionChanged);
     };
-  }, [refresh]);
+  }, [refresh, bumpVersion]);
 
   const setUser = useCallback(
     (nextUser: SessionUser) => {

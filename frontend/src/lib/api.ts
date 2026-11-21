@@ -207,7 +207,15 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   }
 
   if (response.status === 204) return undefined as T;
-  const data = (await response.json()) as T;
+  let data: T;
+  try {
+    data = (await response.json()) as T;
+  } catch (error) {
+    if (requestGeneration !== sessionGeneration) {
+      throw new ApiError(409, "session_changed", "Сессия изменилась");
+    }
+    throw error;
+  }
   if (requestGeneration !== sessionGeneration) {
     throw new ApiError(409, "session_changed", "Сессия изменилась");
   }
@@ -661,7 +669,12 @@ export async function uploadInterviewSource(file: File): Promise<InterviewSource
       error?.message ?? "Не удалось загрузить файл",
     );
   }
-  const data = (await response.json()) as InterviewSource;
+  const data = (await response.json().catch((error: unknown) => {
+    if (sessionGeneration !== requestGeneration) {
+      throw new ApiError(409, "session_changed", "Сессия изменилась");
+    }
+    throw error;
+  })) as InterviewSource;
   if (sessionGeneration !== requestGeneration) {
     throw new ApiError(409, "session_changed", "Сессия изменилась");
   }
