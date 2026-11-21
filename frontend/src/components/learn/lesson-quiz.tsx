@@ -171,7 +171,8 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
         return;
       }
       if (caught instanceof ApiError && caught.status === 409) {
-        setError(t.sessionChanged);
+        submitToken.current = null;
+        setError(caught.message || t.submitError);
         return;
       }
       setError(t.submitError);

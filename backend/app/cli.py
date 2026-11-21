@@ -14,7 +14,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_engine
-from app.models import InterviewQuestion
+from app.models import (
+    InterviewQuestion,
+    InterviewQuestionAlias,
+    InterviewQuestionSource,
+)
 from app.schemas.user import UserCreate
 from app.services import auth_service
 
@@ -49,20 +53,41 @@ def create_admin(db: Session) -> int:
 def export_interview(db: Session) -> int:
     """Печатает банк вопросов JSON в stdout для резервной копии."""
     questions = list(db.scalars(select(InterviewQuestion).order_by(InterviewQuestion.id)))
-    payload = [
-        {
-            "id": item.id,
-            "text": item.text,
-            "topic": item.topic,
-            "difficulty": item.difficulty,
-            "level": item.level,
-            "status": item.status,
-            "lesson_id": item.lesson_id,
-            "reference_answer": item.reference_answer,
-            "answer_criteria": item.answer_criteria,
-        }
-        for item in questions
-    ]
+    payload = []
+    for item in questions:
+        contributions = list(
+            db.scalars(
+                select(InterviewQuestionSource).where(
+                    InterviewQuestionSource.question_id == item.id
+                )
+            )
+        )
+        aliases = list(
+            db.scalars(
+                select(InterviewQuestionAlias).where(InterviewQuestionAlias.question_id == item.id)
+            )
+        )
+        payload.append(
+            {
+                "id": item.id,
+                "text": item.text,
+                "topic": item.topic,
+                "difficulty": item.difficulty,
+                "level": item.level,
+                "status": item.status,
+                "lesson_id": item.lesson_id,
+                "reference_answer": item.reference_answer,
+                "answer_criteria": item.answer_criteria,
+                "contributions": [
+                    {
+                        "source_id": contribution.source_id,
+                        "occurrences": contribution.occurrences,
+                    }
+                    for contribution in contributions
+                ],
+                "aliases": [alias.fingerprint for alias in aliases],
+            }
+        )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 

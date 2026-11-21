@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, or_, select, update
@@ -169,6 +170,7 @@ def submit(
     text: str,
     answer_id: int,
     allow_external: bool = False,
+    processing_token: str | None = None,
 ) -> MockAnswerResult:
     text = text.replace("\x00", "").strip()[:6_000]
     if not text:
@@ -240,6 +242,8 @@ def submit(
             fresh_answer = next((item for item in fresh.answers if item.id == answer_id), None)
             if fresh_answer is None:
                 raise MockInterviewError("Вопрос не найден")
+            if processing_token is not None and fresh_answer.processing_token != processing_token:
+                raise MockInterviewValidationError("Аренда ответа истекла")
             if fresh_answer.answer is not None:
                 return MockAnswerResult(
                     answer_id=fresh_answer.id,
@@ -255,6 +259,7 @@ def submit(
             fresh_answer.score = score
             fresh_answer.feedback = feedback
             fresh_answer.processing_at = None
+            fresh_answer.processing_token = None
             if all(item.answer is not None for item in fresh.answers):
                 fresh.status = "completed"
                 fresh.completed_at = datetime.now(UTC)
@@ -273,8 +278,8 @@ def submit(
                 write_db.close()
 
 
-def claim_answer(db: Session, user: User, interview_id: int, answer_id: int) -> bool:
-    """Атомарно резервирует текущий ответ до внешней оценки."""
+def claim_answer(db: Session, user: User, interview_id: int, answer_id: int) -> str | None:
+    """Атомарно резервирует ответ и возвращает токен владения арендой."""
     interview = db.scalar(
         select(MockInterview).where(
             MockInterview.id == interview_id,
@@ -283,10 +288,11 @@ def claim_answer(db: Session, user: User, interview_id: int, answer_id: int) -> 
         )
     )
     if interview is None:
-        return False
+        return None
     current = _current(interview)
     if current is None or current.answer_id != answer_id:
-        return False
+        return None
+    token = uuid.uuid4().hex
     result = db.execute(
         update(MockInterviewAnswer)
         .where(
@@ -297,17 +303,20 @@ def claim_answer(db: Session, user: User, interview_id: int, answer_id: int) -> 
                 MockInterviewAnswer.processing_at < datetime.now(UTC) - timedelta(minutes=5),
             ),
         )
-        .values(processing_at=datetime.now(UTC))
+        .values(processing_at=datetime.now(UTC), processing_token=token)
     )
     db.commit()
-    return result.rowcount == 1
+    return token if result.rowcount == 1 else None
 
 
-def release_answer(db: Session, answer_id: int) -> None:
+def release_answer(db: Session, answer_id: int, token: str) -> None:
     db.execute(
         update(MockInterviewAnswer)
-        .where(MockInterviewAnswer.id == answer_id)
-        .values(processing_at=None)
+        .where(
+            MockInterviewAnswer.id == answer_id,
+            MockInterviewAnswer.processing_token == token,
+        )
+        .values(processing_at=None, processing_token=None)
     )
     db.commit()
 

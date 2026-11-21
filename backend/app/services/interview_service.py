@@ -266,7 +266,10 @@ def _ai_questions(
     complete = True
     safe_text = privacy.anonymize(text)
     chunks = [safe_text[index : index + 12_000] for index in range(0, len(safe_text), 12_000)]
-    for chunk in chunks[:10]:
+    for index, chunk in enumerate(chunks):
+        if index >= 10:
+            complete = False
+            break
         before = len(result)
         raw = ai_teacher_service.complete_external(
             system,
@@ -590,18 +593,18 @@ def analyze_source(
         source_row = write_db.get(InterviewSource, source_id)
         if source_row is not None:
             source_row.status = "analyzed" if complete else "partial"
+            messages: list[str] = []
             if not complete:
-                source_row.error = (
+                messages.append(
                     "Часть фрагментов не разобрана внешним AI. "
                     "Прежние вклады сохранены, запустите разбор ещё раз."
                 )
             if len(text) > 120_000:
-                source_row.error = (
+                messages.append(
                     f"Материал длиннее 120 000 символов: разобраны первые 120 000 "
                     f"(всего {len(text)})."
                 )
-            else:
-                source_row.error = None
+            source_row.error = " ".join(messages) or None
         write_db.commit()
         provider = "llm" if ai_teacher_service.provider_status().external else "local"
         return AnalyzeResult(

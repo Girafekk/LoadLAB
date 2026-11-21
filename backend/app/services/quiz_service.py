@@ -237,6 +237,11 @@ def submit_attempt(
     locked = db.scalar(select(Quiz.id).where(Quiz.id == quiz.id).with_for_update())
     if locked is None:
         raise QuizNotFoundError
+    # Публикация могла измениться, пока ждали блокировку.
+    fresh = _load_quiz(db, lesson_id)
+    if fresh is None or fresh.id != quiz.id:
+        raise QuizNotFoundError
+    quiz = fresh
     _ensure_valid_content(quiz)
 
     selected = _validate_answers(quiz.questions, data.answers)
