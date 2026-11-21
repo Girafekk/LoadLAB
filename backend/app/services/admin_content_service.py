@@ -458,6 +458,8 @@ def replace_lesson_quiz(db: Session, lesson_id: int, data: QuizAdminPayload) -> 
             raise AdminValidationError("В каждом вопросе должен быть верный вариант")
 
     existing = db.scalar(select(Quiz).where(Quiz.lesson_id == lesson.id).with_for_update())
+    if existing is None and data.expected_quiz_id is not None:
+        raise AdminConflictError("Квиз уже удалён или заменён")
     if existing is not None:
         attempts_count = int(
             db.scalar(
@@ -467,17 +469,19 @@ def replace_lesson_quiz(db: Session, lesson_id: int, data: QuizAdminPayload) -> 
             )
             or 0
         )
-        if data.expected_quiz_id is not None and data.expected_quiz_id != existing.id:
+        if attempts_count and not data.confirm_attempts_loss:
+            raise AdminConflictError(
+                f"У квиза {attempts_count} попыток учеников. Подтвердите удаление истории."
+            )
+        if data.expected_quiz_id is None:
+            raise AdminConflictError("Обновите редактор: не передан ID версии квиза")
+        if data.expected_quiz_id != existing.id:
             raise AdminConflictError("Квиз уже заменён: обновите редактор")
         if (
             data.expected_attempts_count is not None
             and attempts_count != data.expected_attempts_count
         ):
             raise AdminConflictError("Квиз изменился: обновите редактор перед заменой")
-        if attempts_count and not data.confirm_attempts_loss:
-            raise AdminConflictError(
-                f"У квиза {attempts_count} попыток учеников. Подтвердите удаление истории."
-            )
         db.delete(existing)
         db.flush()
 
@@ -529,14 +533,16 @@ def delete_lesson_quiz(
         )
         or 0
     )
-    if expected_quiz_id is not None and expected_quiz_id != quiz.id:
-        raise AdminConflictError("Квиз уже заменён: обновите редактор")
-    if expected_attempts_count is not None and attempts_count != expected_attempts_count:
-        raise AdminConflictError("Квиз изменился: обновите редактор перед удалением")
     if attempts_count and not confirm_attempts_loss:
         raise AdminConflictError(
             f"У квиза {attempts_count} попыток учеников. Подтвердите удаление истории."
         )
+    if expected_quiz_id is None:
+        raise AdminConflictError("Обновите редактор: не передан ID версии квиза")
+    if expected_quiz_id != quiz.id:
+        raise AdminConflictError("Квиз уже заменён: обновите редактор")
+    if expected_attempts_count is not None and attempts_count != expected_attempts_count:
+        raise AdminConflictError("Квиз изменился: обновите редактор перед удалением")
     db.delete(quiz)
     db.commit()
 

@@ -94,15 +94,12 @@ def seed_content(
     quizzes_created = 0
 
     for module in course.modules:
-        module_index = next(
-            (index for index, source in enumerate(COURSE.modules) if source.title == module.title),
-            None,
-        )
-        if module_index is None:
-            continue
-        week = WEEKS.get(module_index + 1)
+        # Модуль ищем по позиции, а не по названию: администратор мог
+        # переименовать его, но неделя и content_key остаются прежними.
+        week = WEEKS.get(module.position)
         if week is None:
-            raise RuntimeError(f"Нет контента для модуля {module.position}")
+            continue
+        module_index = module.position - 1
 
         by_title: dict[str, Lesson] = {}
         duplicates: set[str] = set()

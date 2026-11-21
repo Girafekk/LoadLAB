@@ -284,6 +284,7 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
         expected_quiz_id: quizId ?? undefined,
       });
       setQuizExists(true);
+      setQuizId(saved.id);
       setAttemptsCount(0);
       setLesson((current) => (current ? { ...current, quiz_id: saved.id } : current));
       setMessage(t.saved);

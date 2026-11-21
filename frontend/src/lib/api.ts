@@ -125,20 +125,27 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
+  skipUserHeader?: boolean;
 };
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, signal } = options;
+  const { method = "GET", body, signal, headers: extraHeaders, skipUserHeader } = options;
   if (sessionStale && method !== "GET") {
+    throw new ApiError(409, "session_changed", "Сессия изменилась");
+  }
+  if (sessionStale && !path.startsWith("/auth/") && path !== "/health") {
     throw new ApiError(409, "session_changed", "Сессия изменилась");
   }
 
   let response: Response;
   const requestExpectedUserId = expectedUserId;
   try {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...extraHeaders };
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    if (expectedUserId !== null) headers["X-LoadLab-User"] = String(expectedUserId);
+    if (!skipUserHeader && expectedUserId !== null && headers["X-LoadLab-User"] === undefined) {
+      headers["X-LoadLab-User"] = String(expectedUserId);
+    }
     response = await fetch(`${API_BASE_URL}${API_PREFIX}${path}`, {
       method,
       signal,
@@ -192,14 +199,17 @@ export function loginUser(credentials: Credentials): Promise<SessionUser> {
   return apiRequest<SessionUser>("/auth/login", { method: "POST", body: credentials });
 }
 
-export function logoutUser(): Promise<void> {
-  return apiRequest<void>("/auth/logout", { method: "POST" });
+export function logoutUser(userId?: number): Promise<void> {
+  return apiRequest<void>("/auth/logout", {
+    method: "POST",
+    headers: userId ? { "X-LoadLab-User": String(userId) } : undefined,
+  });
 }
 
 /** Текущий пользователь или `null`, если вход не выполнен. */
 export async function fetchCurrentUser(signal?: AbortSignal): Promise<SessionUser | null> {
   try {
-    return await apiRequest<SessionUser>("/auth/me", { signal });
+    return await apiRequest<SessionUser>("/auth/me", { signal, skipUserHeader: true });
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) return null;
     throw error;

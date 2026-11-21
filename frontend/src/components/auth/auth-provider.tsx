@@ -155,8 +155,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // номер версии изменится, и завершение выхода не тронет новый вход.
     const logoutVersion = bumpVersion();
     authChangedByUser.current = true;
+    const logoutUserId = userRef.current?.id;
 
-    await logoutUser();
+    await logoutUser(logoutUserId);
 
     if (versionRef.current !== logoutVersion) return;
     applyUser(null);

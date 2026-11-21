@@ -282,9 +282,14 @@ def test_admin_quiz_save_requires_confirmation_when_attempts_exist(api_client, d
     assert blocked.status_code == 409
     assert "попыток" in blocked.json()["error"]["message"]
 
+    quiz_id = db_session.scalar(select(Quiz.id))
     confirmed = api_client.put(
         f"/api/v1/admin/lessons/{lesson_id}/quiz",
-        json={**payload, "confirm_attempts_loss": True},
+        json={
+            **payload,
+            "confirm_attempts_loss": True,
+            "expected_quiz_id": quiz_id,
+        },
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["attempts_count"] == 0
@@ -382,10 +387,12 @@ def test_admin_delete_quiz_requires_confirmation(api_client, db_session):
         == 201
     )
 
+    quiz_id = db_session.scalar(select(Quiz.id))
     assert api_client.delete(f"/api/v1/admin/lessons/{lesson_id}/quiz").status_code == 409
     assert (
         api_client.delete(
-            f"/api/v1/admin/lessons/{lesson_id}/quiz?confirm_attempts_loss=true"
+            f"/api/v1/admin/lessons/{lesson_id}/quiz"
+            f"?confirm_attempts_loss=true&expected_quiz_id={quiz_id}"
         ).status_code
         == 204
     )
