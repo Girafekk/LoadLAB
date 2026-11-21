@@ -1,0 +1,26 @@
+# Production Caddy: настоящий домен и автоматический TLS Let's Encrypt.
+# Запуск:
+#   SITE_ADDRESS=loadlab.example.com \
+#   CADDYFILE=./Caddyfile.prod \
+#   docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml up -d
+#
+# Для локальной репетиции используется Caddyfile с tls internal.
+
+{$SITE_ADDRESS:loadlab.example.com} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend-prod:8000
+	}
+
+	handle {
+		reverse_proxy frontend-prod:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
