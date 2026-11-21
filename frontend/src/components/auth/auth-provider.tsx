@@ -3,7 +3,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { fetchCurrentUser, logoutUser, setApiUser, type SessionUser } from "@/lib/api";
+import {
+  bumpSessionGeneration,
+  fetchCurrentUser,
+  logoutUser,
+  setApiUser,
+  type SessionUser,
+} from "@/lib/api";
 
 type AuthStatus = "loading" | "authenticated" | "anonymous";
 
@@ -56,9 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyUser = useCallback((nextUser: SessionUser | null) => {
     userRef.current = nextUser;
-    setApiUser(nextUser?.id ?? null);
+    setApiUser(nextUser?.id ?? null, nextUser?.session_id ?? null);
     setCurrentUser(nextUser);
     setStatus(nextUser ? "authenticated" : "anonymous");
+  }, []);
+
+  const bumpVersion = useCallback(() => {
+    bumpSessionGeneration();
+    versionRef.current += 1;
+    setVersion(versionRef.current);
+    return versionRef.current;
   }, []);
 
   const refresh = useCallback(
@@ -76,26 +89,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         if (seq === refreshSeq.current && !authChangedByUser.current) {
-          setStatus("anonymous");
+          applyUser(null);
         }
         throw error;
       }
       if (seq !== refreshSeq.current) return;
       if (authChangedByUser.current) return;
-      if ((currentUser?.id ?? null) !== (userRef.current?.id ?? null)) {
-        versionRef.current += 1;
-        setVersion(versionRef.current);
+      if (
+        (currentUser?.id ?? null) !== (userRef.current?.id ?? null) ||
+        (currentUser?.session_id ?? null) !==
+          (userRef.current?.session_id ?? null)
+      ) {
+        bumpVersion();
       }
       applyUser(currentUser);
     },
-    [applyUser],
+    [applyUser, bumpVersion],
   );
-
-  const bumpVersion = useCallback(() => {
-    versionRef.current += 1;
-    setVersion(versionRef.current);
-    return versionRef.current;
-  }, []);
 
   const notifyOtherTabs = useCallback(() => {
     channelRef.current?.postMessage({ type: "changed" });

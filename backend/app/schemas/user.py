@@ -41,6 +41,9 @@ class SessionUser(BaseModel):
     id: int
     email: str
     role: Literal["student", "admin"]
+    # Идентификатор серверной сессии: позволяет отличить повторный вход
+    # того же пользователя от обычной фоновой сверки.
+    session_id: str | None = None
 
 
 class UserRead(SessionUser):

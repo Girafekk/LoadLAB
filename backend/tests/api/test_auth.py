@@ -40,7 +40,13 @@ def test_register_creates_student_and_logs_in(api_client, db_session):
 
     me = api_client.get("/api/v1/auth/me")
     assert me.status_code == 200
-    assert me.json() == {"id": body["id"], "email": "student@example.com", "role": "student"}
+    assert me.json() == {
+        "id": body["id"],
+        "email": "student@example.com",
+        "role": "student",
+        "session_id": me.json()["session_id"],
+    }
+    assert me.json()["session_id"]
 
     profile = api_client.get("/api/v1/users/me")
     assert profile.status_code == 200

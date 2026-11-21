@@ -86,6 +86,7 @@ export type SessionUser = {
   id: number;
   email: string;
   role: UserRole;
+  session_id?: string | null;
 };
 
 export type Credentials = {
@@ -101,13 +102,26 @@ export type Credentials = {
 let expectedUserId: number | null = null;
 let sessionStale = false;
 let sessionGeneration = 0;
+let activeSessionId: string | null = null;
 
-export function setApiUser(userId: number | null): void {
-  if (userId !== expectedUserId || sessionStale) {
+export function setApiUser(
+  userId: number | null,
+  sessionId: string | null = null,
+): void {
+  if (
+    userId !== expectedUserId ||
+    sessionId !== activeSessionId ||
+    sessionStale
+  ) {
     sessionGeneration += 1;
   }
   expectedUserId = userId;
+  activeSessionId = sessionId;
   sessionStale = false;
+}
+
+export function bumpSessionGeneration(): void {
+  sessionGeneration += 1;
 }
 
 type ErrorDetail = { field: string; message: string };
@@ -181,6 +195,9 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
+    if (requestGeneration !== sessionGeneration) {
+      throw new ApiError(409, "session_changed", "Сессия изменилась");
+    }
     const error = payload?.error;
     if (
       response.status === 409 &&
@@ -195,6 +212,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
       ) {
         expectedUserId = null;
         sessionStale = true;
+        bumpSessionGeneration();
         window.dispatchEvent(new Event("loadlab:session-changed"));
       }
     }
@@ -661,6 +679,7 @@ export async function uploadInterviewSource(file: File): Promise<InterviewSource
     ) {
       expectedUserId = null;
       sessionStale = true;
+      bumpSessionGeneration();
       window.dispatchEvent(new Event("loadlab:session-changed"));
     }
     throw new ApiError(

@@ -1,5 +1,7 @@
 """Регистрация, вход, выход и «кто я»."""
 
+import hashlib
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
@@ -150,5 +152,11 @@ def logout(
     summary="Текущий пользователь",
     description="Кто сейчас вошёл. Без действующей сессии — 401.",
 )
-def read_current_user(user: User = Depends(get_current_user)) -> User:
-    return user
+def read_current_user(
+    user: User = Depends(get_current_user),
+    token: str | None = Depends(get_session_token),
+) -> SessionUser:
+    payload = SessionUser.model_validate(user)
+    if token:
+        payload.session_id = hashlib.sha256(token.encode()).hexdigest()[:16]
+    return payload

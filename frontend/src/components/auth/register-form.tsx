@@ -32,9 +32,16 @@ export function RegisterForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const versionRef = useRef(version);
+  const mountedRef = useRef(true);
   useEffect(() => {
     versionRef.current = version;
   }, [version]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,10 +58,10 @@ export function RegisterForm() {
     const startVersion = version;
     try {
       const user = await registerUser({ email, password });
-      if (versionRef.current !== startVersion) return;
+      if (!mountedRef.current || versionRef.current !== startVersion) return;
       setUser(user);
     } catch (error) {
-      if (versionRef.current !== startVersion) return;
+      if (!mountedRef.current || versionRef.current !== startVersion) return;
       setFormError(describeAuthError(error));
       setSubmitting(false);
     }
