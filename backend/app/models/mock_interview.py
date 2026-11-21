@@ -52,6 +52,7 @@ class MockInterviewAnswer(Base):
     reference_answer: Mapped[str | None] = mapped_column(Text)
     answer_criteria: Mapped[str | None] = mapped_column(Text)
     answer: Mapped[str | None] = mapped_column(Text)
+    processing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     feedback: Mapped[str | None] = mapped_column(Text)
     score: Mapped[int | None] = mapped_column(Integer)
 

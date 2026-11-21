@@ -406,7 +406,7 @@ def analyze_source(
         )
         counts = Counter(_fingerprint(_clean_text(str(item["text"]))[:1_000]) for item in extracted)
         seen: set[str] = set()
-        touched: set[int] = set()
+        resolved_counts: dict[int, int] = {}
         created = 0
         duplicates = 0
         for item in extracted:
@@ -442,14 +442,16 @@ def analyze_source(
                 write_db.add(question)
                 write_db.flush()
                 created += 1
+            resolved_counts[question.id] = resolved_counts.get(question.id, 0) + counts[fingerprint]
+        for question_id, occurrences in resolved_counts.items():
             write_db.add(
                 InterviewQuestionSource(
-                    question_id=question.id,
+                    question_id=question_id,
                     source_id=source_id,
-                    occurrences=counts[fingerprint],
+                    occurrences=occurrences,
                 )
             )
-            touched.add(question.id)
+        touched = set(resolved_counts)
         for question_id in touched | old_ids:
             total = write_db.scalar(
                 select(func.coalesce(func.sum(InterviewQuestionSource.occurrences), 0)).where(

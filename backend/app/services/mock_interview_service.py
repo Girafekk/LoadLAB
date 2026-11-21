@@ -7,7 +7,7 @@ import re
 import threading
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
@@ -115,7 +115,7 @@ def _fallback_feedback(
         hits = sum(1 for word in set(keywords) if word in lowered)
         if hits >= 2:
             score += 1
-    return min(score, 4), ("Разбор локальный: проверьте, что названы главное, пример и граница.")
+    return min(score, 5), ("Разбор локальный: проверьте, что названы главное, пример и граница.")
 
 
 def evaluate(
@@ -254,6 +254,7 @@ def submit(
             fresh_answer.answer = text
             fresh_answer.score = score
             fresh_answer.feedback = feedback
+            fresh_answer.processing_at = None
             if all(item.answer is not None for item in fresh.answers):
                 fresh.status = "completed"
                 fresh.completed_at = datetime.now(UTC)
@@ -270,6 +271,42 @@ def submit(
         finally:
             if separate:
                 write_db.close()
+
+
+def claim_answer(db: Session, user: User, interview_id: int, answer_id: int) -> bool:
+    """Атомарно резервирует текущий ответ до внешней оценки."""
+    interview = db.scalar(
+        select(MockInterview).where(
+            MockInterview.id == interview_id,
+            MockInterview.user_id == user.id,
+            MockInterview.status == "active",
+        )
+    )
+    if interview is None:
+        return False
+    current = _current(interview)
+    if current is None or current.answer_id != answer_id:
+        return False
+    result = db.execute(
+        update(MockInterviewAnswer)
+        .where(
+            MockInterviewAnswer.id == answer_id,
+            MockInterviewAnswer.answer.is_(None),
+            MockInterviewAnswer.processing_at.is_(None),
+        )
+        .values(processing_at=datetime.now(UTC))
+    )
+    db.commit()
+    return result.rowcount == 1
+
+
+def release_answer(db: Session, answer_id: int) -> None:
+    db.execute(
+        update(MockInterviewAnswer)
+        .where(MockInterviewAnswer.id == answer_id)
+        .values(processing_at=None)
+    )
+    db.commit()
 
 
 def saved_result(

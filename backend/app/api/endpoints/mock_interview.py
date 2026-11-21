@@ -45,8 +45,14 @@ def submit_answer(
     saved = mock_interview_service.saved_result(db, user, interview_id, data.answer_id)
     if saved is not None:
         return saved
+    if not mock_interview_service.claim_answer(db, user, interview_id, data.answer_id):
+        saved = mock_interview_service.saved_result(db, user, interview_id, data.answer_id)
+        if saved is not None:
+            return saved
+        raise HTTPException(status_code=409, detail="Ответ уже обрабатывается")
     retry_after = ai_teacher_rate_limiter.reserve_attempt(f"mock-interview:{user.id}")
     if retry_after:
+        mock_interview_service.release_answer(db, data.answer_id)
         raise HTTPException(
             status_code=429,
             detail="Слишком много ответов. Подождите минуту.",
@@ -62,9 +68,14 @@ def submit_answer(
             allow_external=data.allow_external,
         )
     except mock_interview_service.MockInterviewValidationError as error:
+        mock_interview_service.release_answer(db, data.answer_id)
         raise HTTPException(status_code=422, detail=str(error)) from None
     except mock_interview_service.MockInterviewError as error:
+        mock_interview_service.release_answer(db, data.answer_id)
         raise HTTPException(status_code=404, detail=str(error)) from None
+    except Exception:
+        mock_interview_service.release_answer(db, data.answer_id)
+        raise
 
 
 @router.get("/{interview_id}", response_model=MockReport)
