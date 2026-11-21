@@ -3,11 +3,12 @@
 ## Ежедневно
 
 ```bash
-./infrastructure/backup.sh /srv/loadlab/backups
+BACKUP_GPG_RECIPIENT=backup@example.com ./infrastructure/backup.sh /srv/loadlab/backups
 ```
 
-Скрипт делает `pg_dump -Fc`, проверяет дамп через `pg_restore --list` и хранит
-14 дней. Копии нужно дополнительно отправлять в защищённое хранилище вне сервера.
+Скрипт делает `pg_dump -Fc`, проверяет дамп через `pg_restore --list`, шифрует
+GPG при заданном получателе и хранит 14 дней. Копии нужно дополнительно
+отправлять в защищённое хранилище вне сервера.
 
 ## Восстановление
 

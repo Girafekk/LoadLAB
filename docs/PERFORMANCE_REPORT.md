@@ -1,7 +1,7 @@
 # Отчёт о производительности
 
 - Дата: 21.11.2026
-- Снимок/HEAD: `971350d`
+- Снимок/HEAD: `84a4932` (кэш каталога — `cc68220`)
 - Конфигурация: локальный production-контур, backend Python 3.12, PostgreSQL 17,
   Caddy; один backend.
 - Инструмент: `tools/load_test.py` (stdlib, HTTP keep-alive), 50 потоков, 30 секунд,
