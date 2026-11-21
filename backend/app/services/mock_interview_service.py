@@ -36,17 +36,13 @@ class MockInterviewValidationError(MockInterviewError):
 
 
 def _question(answer: MockInterviewAnswer) -> MockQuestion | None:
-    if answer.question is None and not answer.question_text:
+    if not answer.question_text:
         return None
     return MockQuestion(
         answer_id=answer.id,
         question_id=answer.question_id,
-        text=answer.question_text or (answer.question.text if answer.question else ""),
-        topic=(
-            answer.question_topic
-            if answer.question_topic is not None
-            else (answer.question.topic if answer.question else None)
-        ),
+        text=answer.question_text,
+        topic=answer.question_topic,
         position=answer.position,
     )
 
@@ -101,8 +97,10 @@ def start(db: Session, user: User, count: int = 5) -> MockSession:
     return session_view(interview)
 
 
-def _fallback_feedback(answer: str, criteria: str | None = None) -> tuple[int, str]:
-    """Локальная оценка по критериям, а не только по длине."""
+def _fallback_feedback(
+    answer: str, criteria: str | None = None, reference: str | None = None
+) -> tuple[int, str]:
+    """Локальная оценка по критериям и эталону, а не только по длине."""
     lowered = answer.casefold()
     score = 2
     if len(answer.split()) < 5:
@@ -111,8 +109,9 @@ def _fallback_feedback(answer: str, criteria: str | None = None) -> tuple[int, s
         score += 1
     if "границ" in lowered or "ограничен" in lowered:
         score += 1
-    if criteria:
-        keywords = [word.casefold() for word in re.findall(r"[A-Za-zА-Яа-яЁё]{5,}", criteria)]
+    source = f"{criteria or ''} {reference or ''}"
+    if source:
+        keywords = [word.casefold() for word in re.findall(r"[A-Za-zА-Яа-яЁё]{5,}", source)]
         hits = sum(1 for word in set(keywords) if word in lowered)
         if hits >= 2:
             score += 1
@@ -151,7 +150,7 @@ def evaluate(
                     return score, feedback.replace("\x00", "")[:2_000]
             except (ValueError, TypeError, json.JSONDecodeError):
                 pass
-    return _fallback_feedback(answer, criteria)
+    return _fallback_feedback(answer, criteria, reference)
 
 
 _locks_guard = threading.Lock()
@@ -208,7 +207,7 @@ def submit(
         if expected is None or expected.id != answer.id:
             raise MockInterviewValidationError("Это не текущий вопрос")
         answer_id = answer.id
-        question_text = answer.question_text or (answer.question.text if answer.question else "")
+        question_text = answer.question_text or ""
         reference = answer.reference_answer
         criteria = answer.answer_criteria
         bind = db.get_bind()
@@ -222,16 +221,25 @@ def submit(
             score, feedback = (
                 evaluate(question_text, text, reference, criteria)
                 if allow_external
-                else _fallback_feedback(text, criteria)
+                else _fallback_feedback(text, criteria, reference)
             )
             fresh = write_db.scalar(
-                select(MockInterview).where(MockInterview.id == interview_id).with_for_update()
+                select(MockInterview)
+                .where(
+                    MockInterview.id == interview_id,
+                    MockInterview.user_id == user.id,
+                    MockInterview.status == "active",
+                )
+                .with_for_update()
             )
             if fresh is None:
-                raise MockInterviewError("Собеседование не найдено")
+                raise MockInterviewError("Собеседование завершено или недоступно")
             fresh_answer = next((item for item in fresh.answers if item.id == answer_id), None)
             if fresh_answer is None:
                 raise MockInterviewError("Вопрос не найден")
+            current_answer = _current(fresh)
+            if current_answer is None or current_answer.answer_id != answer_id:
+                raise MockInterviewValidationError("Это не текущий вопрос")
             if fresh_answer.answer is not None:
                 return MockAnswerResult(
                     answer_id=fresh_answer.id,

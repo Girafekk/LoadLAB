@@ -5,6 +5,7 @@
     uvicorn app.main:app --reload --port 8001
 """
 
+import json
 import logging
 
 from fastapi import FastAPI
@@ -23,7 +24,9 @@ class UploadLimitMiddleware:
         self.limit = limit
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not scope["path"].endswith("/admin/interview/sources"):
+        if scope["type"] != "http" or not scope["path"].rstrip("/").endswith(
+            "/admin/interview/sources"
+        ):
             await self.app(scope, receive, send)
             return
         if scope["method"] != "POST":
@@ -48,10 +51,16 @@ class UploadLimitMiddleware:
                 await send(
                     {
                         "type": "http.response.body",
-                        "body": (
-                            b'{"error":{"code":"http_error",'
-                            b'"message":"File is too large","details":null}}'
-                        ),
+                        "body": json.dumps(
+                            {
+                                "error": {
+                                    "code": "http_error",
+                                    "message": "Файл больше 10 МБ",
+                                    "details": None,
+                                }
+                            },
+                            ensure_ascii=False,
+                        ).encode(),
                     }
                 )
                 return
