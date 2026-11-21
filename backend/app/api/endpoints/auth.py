@@ -2,7 +2,7 @@
 
 import hashlib
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_client_ip, get_current_user, get_session_token
@@ -10,7 +10,7 @@ from app.core.config import Settings, get_settings
 from app.core.rate_limit import FailureRateLimiter, login_rate_limiter
 from app.db.session import get_db
 from app.models import User
-from app.schemas.auth import LoginRequest
+from app.schemas.auth import AttachSessionRequest, LoginRequest
 from app.schemas.user import SessionUser, UserCreate, UserRead
 from app.services import auth_service
 
@@ -55,11 +55,11 @@ def _clear_session_cookie(response: Response, settings: Settings) -> None:
 def register(
     data: UserCreate,
     response: Response,
+    token_only: bool = Query(default=False),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
-) -> User:
+) -> UserRead:
     try:
-        # Пользователь и первая сессия создаются одной транзакцией.
         user, token = auth_service.register_user_with_session(db, data.email, data.password)
     except auth_service.EmailAlreadyRegisteredError:
         raise HTTPException(
@@ -67,8 +67,10 @@ def register(
             detail="Пользователь с таким email уже зарегистрирован",
         ) from None
 
+    if token_only:
+        return UserRead.model_validate(user).model_copy(update={"session_token": token})
     _set_session_cookie(response, token, settings)
-    return user
+    return UserRead.model_validate(user)
 
 
 @router.post(
@@ -83,11 +85,12 @@ def register(
 def login(
     data: LoginRequest,
     response: Response,
+    token_only: bool = Query(default=False),
     client_ip: str = Depends(get_client_ip),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
     limiter: FailureRateLimiter = Depends(get_login_rate_limiter),
-) -> User:
+) -> UserRead:
     try:
         # Попытка занимается до проверки пароля: иначе параллельные запросы
         # успевали пройти лимит, пока первый ещё сверял хэш.
@@ -114,8 +117,11 @@ def login(
 
     auth_service.clear_login_failures(limiter, client_ip, data.email)
     auth_service.delete_expired_sessions(db)
-    _set_session_cookie(response, auth_service.create_session(db, user), settings)
-    return user
+    token = auth_service.create_session(db, user)
+    if token_only:
+        return UserRead.model_validate(user).model_copy(update={"session_token": token})
+    _set_session_cookie(response, token, settings)
+    return UserRead.model_validate(user)
 
 
 @router.post(
@@ -144,6 +150,33 @@ def logout(
         auth_service.delete_session(db, token)
     # Cookie не очищаем: запоздалый ответ выхода старой вкладки не должен
     # удалить cookie уже нового входа. Сессия на сервере уже отозвана.
+
+
+@router.post(
+    "/attach",
+    response_model=SessionUser,
+    summary="Привязать сессию к cookie",
+    description="Ставит cookie только для последней созданной сессии пользователя.",
+)
+def attach_session(
+    data: AttachSessionRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> SessionUser:
+    user = auth_service.get_user_by_session_token(db, data.session_token)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия не найдена")
+    if not auth_service.is_latest_session(db, data.session_token, user.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Сессия уже заменена более новым входом",
+            headers={"X-Session-Changed": "1"},
+        )
+    _set_session_cookie(response, data.session_token, settings)
+    return SessionUser.model_validate(user).model_copy(
+        update={"session_id": hashlib.sha256(data.session_token.encode()).hexdigest()[:16]}
+    )
 
 
 @router.get(

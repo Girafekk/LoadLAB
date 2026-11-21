@@ -12,3 +12,9 @@ class LoginRequest(BaseModel):
 
     email: Email
     password: str = Field(min_length=1, max_length=PASSWORD_MAX_LENGTH)
+
+
+class AttachSessionRequest(BaseModel):
+    """Привязка уже созданной серверной сессии к cookie."""
+
+    session_token: str = Field(min_length=20, max_length=200)

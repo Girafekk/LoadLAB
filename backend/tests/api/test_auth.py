@@ -45,6 +45,7 @@ def test_register_creates_student_and_logs_in(api_client, db_session):
         "email": "student@example.com",
         "role": "student",
         "session_id": me.json()["session_id"],
+        "session_token": None,
     }
     assert me.json()["session_id"]
 
@@ -430,3 +431,19 @@ def test_cookie_is_secure_in_production(api_client):
 
     assert response.status_code == 201
     assert "secure" in response.headers["set-cookie"].lower()
+
+
+def test_token_only_register_attaches_latest_session(api_client):
+    issued = api_client.post(
+        "/api/v1/auth/register?token_only=true",
+        json={"email": "attach@example.com", "password": PASSWORD},
+    )
+    assert issued.status_code == 201
+    assert "set-cookie" not in issued.headers
+    token = issued.json()["session_token"]
+    assert token
+
+    attached = api_client.post("/api/v1/auth/attach", json={"session_token": token})
+    assert attached.status_code == 200
+    assert attached.json()["session_id"]
+    assert api_client.get("/api/v1/auth/me").status_code == 200

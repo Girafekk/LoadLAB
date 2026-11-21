@@ -87,6 +87,7 @@ export type SessionUser = {
   email: string;
   role: UserRole;
   session_id?: string | null;
+  session_token?: string | null;
 };
 
 export type Credentials = {
@@ -244,12 +245,28 @@ export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return apiRequest<HealthResponse>("/health", { signal });
 }
 
-export function registerUser(credentials: Credentials): Promise<SessionUser> {
-  return apiRequest<SessionUser>("/auth/register", { method: "POST", body: credentials });
+export async function registerUser(credentials: Credentials): Promise<SessionUser> {
+  const issued = await apiRequest<SessionUser>("/auth/register?token_only=true", {
+    method: "POST",
+    body: credentials,
+  });
+  return attachSession(issued.session_token ?? "");
 }
 
-export function loginUser(credentials: Credentials): Promise<SessionUser> {
-  return apiRequest<SessionUser>("/auth/login", { method: "POST", body: credentials });
+export async function loginUser(credentials: Credentials): Promise<SessionUser> {
+  const issued = await apiRequest<SessionUser>("/auth/login?token_only=true", {
+    method: "POST",
+    body: credentials,
+  });
+  return attachSession(issued.session_token ?? "");
+}
+
+async function attachSession(token: string): Promise<SessionUser> {
+  if (!token) throw new ApiError(401, "auth_error", "Сессия не создана");
+  return apiRequest<SessionUser>("/auth/attach", {
+    method: "POST",
+    body: { session_token: token },
+  });
 }
 
 export function logoutUser(userId?: number): Promise<void> {

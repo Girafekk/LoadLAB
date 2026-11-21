@@ -6,7 +6,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -155,6 +155,20 @@ def create_session(db: Session, user: User) -> str:
     )
     db.commit()
     return token
+
+
+def is_latest_session(db: Session, token: str, user_id: int) -> bool:
+    """Сессия всё ещё последняя для пользователя."""
+    latest = db.scalar(select(func.max(UserSession.id)).where(UserSession.user_id == user_id))
+    if latest is None:
+        return False
+    current = db.scalar(
+        select(UserSession.id).where(
+            UserSession.token_hash == hash_session_token(token),
+            UserSession.user_id == user_id,
+        )
+    )
+    return current == latest
 
 
 def get_user_by_session_token(db: Session, token: str) -> User | None:
