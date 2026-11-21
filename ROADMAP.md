@@ -422,7 +422,8 @@ backend — 74 теста, `ruff check`, `ruff format --check`, `alembic check`;
 - ✅ Резервное копирование БД: `infrastructure/backup.sh`, проверка дампа,
   хранение 14 дней, `restore.sh` и [docs/BACKUP.md](docs/BACKUP.md).
 - ✅ Проверка безопасности и производительности: [docs/SECURITY.md](docs/SECURITY.md),
-  [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md); боевые TLS/backup и браузерные
+  сценарии — [docs/REVIEW_REMAINING.md](docs/REVIEW_REMAINING.md).
 
 ---
 
