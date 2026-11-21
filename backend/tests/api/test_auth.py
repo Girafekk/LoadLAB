@@ -447,3 +447,26 @@ def test_token_only_register_attaches_latest_session(api_client):
     assert attached.status_code == 200
     assert attached.json()["session_id"]
     assert api_client.get("/api/v1/auth/me").status_code == 200
+
+
+def test_old_session_cannot_attach_after_new_login(api_client):
+    old = api_client.post(
+        "/api/v1/auth/register?token_only=true",
+        json={"email": "attach-race@example.com", "password": PASSWORD},
+    )
+    assert old.status_code == 201
+    old_token = old.json()["session_token"]
+
+    new = api_client.post(
+        "/api/v1/auth/login?token_only=true",
+        json={"email": "attach-race@example.com", "password": PASSWORD},
+    )
+    assert new.status_code == 200
+    new_token = new.json()["session_token"]
+
+    assert (
+        api_client.post("/api/v1/auth/attach", json={"session_token": old_token}).status_code == 409
+    )
+    assert (
+        api_client.post("/api/v1/auth/attach", json={"session_token": new_token}).status_code == 200
+    )
