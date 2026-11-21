@@ -9,6 +9,7 @@ from app.models.cheatsheet import Cheatsheet
 from app.models.course import Course
 from app.models.interview import (
     InterviewQuestion,
+    InterviewQuestionAlias,
     InterviewQuestionSource,
     InterviewSource,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "Cheatsheet",
     "Course",
     "InterviewQuestion",
+    "InterviewQuestionAlias",
     "InterviewQuestionSource",
     "InterviewSource",
     "Lesson",

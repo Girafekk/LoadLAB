@@ -233,13 +233,13 @@ def submit(
                 .with_for_update()
             )
             if fresh is None:
+                saved = saved_result(write_db, user, interview_id, answer_id)
+                if saved is not None:
+                    return saved
                 raise MockInterviewError("Собеседование завершено или недоступно")
             fresh_answer = next((item for item in fresh.answers if item.id == answer_id), None)
             if fresh_answer is None:
                 raise MockInterviewError("Вопрос не найден")
-            current_answer = _current(fresh)
-            if current_answer is None or current_answer.answer_id != answer_id:
-                raise MockInterviewValidationError("Это не текущий вопрос")
             if fresh_answer.answer is not None:
                 return MockAnswerResult(
                     answer_id=fresh_answer.id,
@@ -248,6 +248,9 @@ def submit(
                     completed=fresh.status == "completed",
                     next_question=_current(fresh),
                 )
+            current_answer = _current(fresh)
+            if current_answer is None or current_answer.answer_id != answer_id:
+                raise MockInterviewValidationError("Это не текущий вопрос")
             fresh_answer.answer = text
             fresh_answer.score = score
             fresh_answer.feedback = feedback

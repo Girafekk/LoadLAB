@@ -24,8 +24,9 @@ class UploadLimitMiddleware:
         self.limit = limit
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not scope["path"].rstrip("/").endswith(
-            "/admin/interview/sources"
+        if (
+            scope["type"] != "http"
+            or scope["path"].rstrip("/") != "/api/v1/admin/interview/sources"
         ):
             await self.app(scope, receive, send)
             return

@@ -120,7 +120,10 @@ export function MockInterview() {
         setError(t.error);
       }
     } finally {
-      if (ownerRef.current === requestOwner) setBusy(false);
+      if (ownerRef.current === requestOwner) {
+        setBusy(false);
+        setUseAi(false);
+      }
     }
   }
 

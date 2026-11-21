@@ -20,6 +20,7 @@ from app.core.config import get_settings
 from app.models import (
     Course,
     InterviewQuestion,
+    InterviewQuestionAlias,
     InterviewQuestionSource,
     InterviewSource,
     Lesson,
@@ -307,12 +308,12 @@ def _fingerprint(text: str) -> str:
 
 
 def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSource:
-    suffix = Path(upload.filename or "").suffix.lower()
-    if suffix not in ALLOWED_SUFFIXES:
-        raise InterviewError("Поддерживаются TXT, PDF, DOCX, PNG и JPG")
     content = upload.file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
         raise InterviewTooLarge("Файл больше 10 МБ")
+    suffix = Path(upload.filename or "").suffix.lower()
+    if suffix not in ALLOWED_SUFFIXES:
+        raise InterviewError("Поддерживаются TXT, PDF, DOCX, PNG и JPG")
     if not content:
         raise InterviewError("Файл пустой")
     stored_name = hashlib.sha256(content).hexdigest()[:32] + "-" + uuid.uuid4().hex[:12] + suffix
@@ -419,6 +420,10 @@ def analyze_source(
             existing = write_db.scalar(
                 select(InterviewQuestion).where(InterviewQuestion.fingerprint == fingerprint)
             )
+            if existing is None:
+                alias = write_db.get(InterviewQuestionAlias, fingerprint)
+                if alias is not None:
+                    existing = write_db.get(InterviewQuestion, alias.question_id)
             if existing is not None:
                 duplicates += counts[fingerprint]
                 question = existing
@@ -610,6 +615,21 @@ def deduplicate(db: Session, threshold: float = 0.9) -> int:
                     db.delete(contribution)
                 else:
                     contribution.question_id = question.id
+            if db.get(InterviewQuestionAlias, other.fingerprint) is None:
+                db.add(
+                    InterviewQuestionAlias(
+                        fingerprint=other.fingerprint,
+                        question_id=question.id,
+                    )
+                )
+            for alias in list(
+                db.scalars(
+                    select(InterviewQuestionAlias).where(
+                        InterviewQuestionAlias.question_id == other.id
+                    )
+                )
+            ):
+                alias.question_id = question.id
             removed.add(other.id)
             db.delete(other)
             db.flush()

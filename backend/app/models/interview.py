@@ -60,6 +60,17 @@ class InterviewQuestion(TimestampMixin, Base):
     lesson: Mapped[Lesson | None] = relationship()
 
 
+class InterviewQuestionAlias(Base):
+    """Старый fingerprint слитого вопроса ведёт к канонической записи."""
+
+    __tablename__ = "interview_question_aliases"
+
+    fingerprint: Mapped[str] = mapped_column(String(64), primary_key=True)
+    question_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("interview_questions.id", ondelete="CASCADE"), index=True
+    )
+
+
 class InterviewQuestionSource(Base):
     """Вклад одного источника в вопрос: защищает occurrences от двойного счёта."""
 
