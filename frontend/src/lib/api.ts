@@ -103,9 +103,11 @@ let sessionStale = false;
 let sessionGeneration = 0;
 
 export function setApiUser(userId: number | null): void {
+  if (userId !== expectedUserId || sessionStale) {
+    sessionGeneration += 1;
+  }
   expectedUserId = userId;
   sessionStale = false;
-  sessionGeneration += 1;
 }
 
 type ErrorDetail = { field: string; message: string };
@@ -205,7 +207,11 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   }
 
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  const data = (await response.json()) as T;
+  if (requestGeneration !== sessionGeneration) {
+    throw new ApiError(409, "session_changed", "Сессия изменилась");
+  }
+  return data;
 }
 
 export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
@@ -628,10 +634,16 @@ export async function uploadInterviewSource(file: File): Promise<InterviewSource
       body: form,
     });
   } catch {
+    if (sessionGeneration !== requestGeneration) {
+      throw new ApiError(409, "session_changed", "Сессия изменилась");
+    }
     throw new ApiError(0, "network_error", "Не удалось связаться с сервером");
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
+    if (sessionGeneration !== requestGeneration) {
+      throw new ApiError(409, "session_changed", "Сессия изменилась");
+    }
     const error = payload?.error;
     if (
       response.status === 409 &&
@@ -649,7 +661,11 @@ export async function uploadInterviewSource(file: File): Promise<InterviewSource
       error?.message ?? "Не удалось загрузить файл",
     );
   }
-  return (await response.json()) as InterviewSource;
+  const data = (await response.json()) as InterviewSource;
+  if (sessionGeneration !== requestGeneration) {
+    throw new ApiError(409, "session_changed", "Сессия изменилась");
+  }
+  return data;
 }
 
 export function fetchInterviewSources(signal?: AbortSignal): Promise<InterviewSource[]> {

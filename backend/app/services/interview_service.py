@@ -6,6 +6,7 @@ import hashlib
 import json
 import multiprocessing
 import re
+import tempfile
 import time
 import uuid
 from collections import Counter
@@ -335,34 +336,39 @@ def _fingerprint(text: str) -> str:
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 
-def _extract_worker(path: Path, suffix: str, deadline: float, queue) -> None:
+def _extract_worker(path: Path, suffix: str, deadline: float, output: Path) -> None:
     try:
-        queue.put(("ok", _extract_text(path, suffix, deadline)))
-    except Exception as error:  # noqa: BLE001 — текст ошибки нужен родителю
-        queue.put(("error", str(error)))
+        output.write_text(_extract_text(path, suffix, deadline), encoding="utf-8")
+    except Exception:  # noqa: BLE001 — родитель сообщит общую ошибку
+        output.write_text("", encoding="utf-8")
 
 
 def _extract_isolated(path: Path, suffix: str, timeout: float = 35) -> str:
     """Жёстко обрывает зависший парсер в отдельном процессе."""
     context = multiprocessing.get_context("spawn")
-    queue = context.Queue()
+    handle = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    output = Path(handle.name)
+    handle.close()
     process = context.Process(
         target=_extract_worker,
-        args=(path, suffix, time.monotonic() + 30, queue),
+        args=(path, suffix, time.monotonic() + 30, output),
         daemon=True,
     )
-    process.start()
-    process.join(timeout)
-    if process.is_alive():
-        process.terminate()
-        process.join(5)
-        raise InterviewError("Извлечение текста превысило 30 секунд")
-    if queue.empty():
-        raise InterviewError("Не удалось извлечь текст из файла")
-    status, payload = queue.get()
-    if status != "ok":
-        raise InterviewError("Не удалось извлечь текст из файла")
-    return str(payload)
+    try:
+        process.start()
+        process.join(timeout)
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+            if process.is_alive():
+                process.kill()
+                process.join(1)
+            raise InterviewError("Извлечение текста превысило 30 секунд")
+        if process.exitcode != 0:
+            raise InterviewError("Не удалось извлечь текст из файла")
+        return output.read_text(encoding="utf-8")
+    finally:
+        output.unlink(missing_ok=True)
 
 
 def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSourceRead:

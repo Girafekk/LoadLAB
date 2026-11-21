@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import { AuthCard, FormError } from "@/components/auth/auth-card";
@@ -31,6 +31,10 @@ export function RegisterForm() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const versionRef = useRef(version);
+  useEffect(() => {
+    versionRef.current = version;
+  }, [version]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,10 +51,10 @@ export function RegisterForm() {
     const startVersion = version;
     try {
       const user = await registerUser({ email, password });
-      if (version !== startVersion) return;
+      if (versionRef.current !== startVersion) return;
       setUser(user);
     } catch (error) {
-      if (version !== startVersion) return;
+      if (versionRef.current !== startVersion) return;
       setFormError(describeAuthError(error));
       setSubmitting(false);
     }
