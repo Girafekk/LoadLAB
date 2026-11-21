@@ -425,6 +425,11 @@ def analyze_source(
             for item in _heuristic_questions(text)
         ]
         # Повторный разбор источника не должен накапливать его же дубли.
+        # Сериализуем переразбор одного источника: вклады и occurrences
+        # не должны считаться двумя транзакциями одновременно.
+        write_db.scalar(
+            select(InterviewSource).where(InterviewSource.id == source_id).with_for_update()
+        )
         old_ids = set(
             write_db.scalars(
                 select(InterviewQuestionSource.question_id).where(

@@ -53,6 +53,7 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
   // Номер запроса истории: ответ на старый запрос не должен перезаписать
   // данные после новой попытки.
   const historyRequestId = useRef(0);
+  const submitToken = useRef<string | null>(null);
 
   // После отправки переводим фокус на результат: иначе он остаётся на кнопке,
   // которая исчезла из разметки.
@@ -139,11 +140,15 @@ export function LessonQuiz({ lessonId }: { lessonId: number }) {
     if (submitting || left > 0) return;
     setSubmitting(true);
     setError(null);
+    const token = submitToken.current ?? crypto.randomUUID();
+    submitToken.current = token;
     try {
       const attempt = await submitQuizAttempt(
         lessonId,
         selectedAnswers(quiz.questions, answers),
+        token,
       );
+      submitToken.current = null;
       setResult(attempt);
       // История и лучший результат обновляются отдельно, чтобы сбой этого
       // запроса не скрывал уже полученный разбор.

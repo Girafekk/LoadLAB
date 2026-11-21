@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -28,6 +28,7 @@ class QuizAttempt(Base):
     quiz_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("quizzes.id", ondelete="CASCADE"), index=True
     )
+    client_token: Mapped[str | None] = mapped_column(String(36), index=True)
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )

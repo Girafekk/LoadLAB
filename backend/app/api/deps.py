@@ -39,11 +39,13 @@ def get_optional_user(
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Сессия изменилась",
+                    headers={"X-Session-Changed": "1"},
                 )
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Сессия изменилась",
+                headers={"X-Session-Changed": "1"},
             ) from None
     return user
 
@@ -70,7 +72,11 @@ def get_current_user(request: Request, user: User | None = Depends(get_optional_
                 status_code=status.HTTP_409_CONFLICT, detail="Сессия изменилась"
             ) from None
         if expected_id != user.id:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Сессия изменилась")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Сессия изменилась",
+                headers={"X-Session-Changed": "1"},
+            )
     return user
 
 

@@ -202,6 +202,29 @@ def _validate_answers(
     return selected
 
 
+def _attempt_result(attempt: QuizAttempt) -> QuizAttemptResult:
+    questions = [
+        QuizQuestionResult(
+            question_id=answer.question_id,
+            is_correct=answer.is_correct,
+            selected_option_ids=sorted(option.id for option in answer.selected_options),
+            correct_option_ids=sorted(
+                option.id for option in answer.question.options if option.is_correct
+            ),
+            explanation=answer.question.explanation,
+        )
+        for answer in attempt.answers
+    ]
+    return QuizAttemptResult(
+        id=attempt.id,
+        score=attempt.score,
+        max_score=attempt.max_score,
+        percent=_percent(attempt.score, attempt.max_score),
+        created_at=attempt.created_at,
+        questions=questions,
+    )
+
+
 def submit_attempt(
     db: Session, lesson_id: int, user: User, data: QuizAttemptCreate
 ) -> QuizAttemptResult:
@@ -215,6 +238,17 @@ def submit_attempt(
     if locked is None:
         raise QuizNotFoundError
     _ensure_valid_content(quiz)
+
+    if data.client_token:
+        existing = db.scalar(
+            select(QuizAttempt).where(
+                QuizAttempt.quiz_id == quiz.id,
+                QuizAttempt.user_id == user.id,
+                QuizAttempt.client_token == data.client_token,
+            )
+        )
+        if existing is not None:
+            return _attempt_result(existing)
 
     selected = _validate_answers(quiz.questions, data.answers)
     recent = db.scalar(
@@ -265,6 +299,7 @@ def submit_attempt(
     attempt = QuizAttempt(
         quiz_id=quiz.id,
         user_id=user.id,
+        client_token=data.client_token,
         score=score,
         max_score=max_score,
     )

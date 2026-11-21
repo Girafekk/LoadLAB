@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // отправленный до этого момента, уже неактуален.
   const authChangedByUser = useRef(false);
   const versionRef = useRef(0);
+  const refreshSeq = useRef(0);
   const userRef = useRef<SessionUser | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
+      const seq = ++refreshSeq.current;
       let currentUser: SessionUser | null;
       try {
         currentUser = await fetchCurrentUser(signal);
@@ -72,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         currentUser = await fetchCurrentUser(signal);
       }
+      if (seq !== refreshSeq.current) return;
       if (authChangedByUser.current) return;
       if ((currentUser?.id ?? null) !== (userRef.current?.id ?? null)) {
         versionRef.current += 1;

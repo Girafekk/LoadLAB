@@ -155,7 +155,11 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const error = payload?.error;
-    if (response.status === 409 && typeof window !== "undefined") {
+    if (
+      response.status === 409 &&
+      response.headers.get("x-session-changed") === "1" &&
+      typeof window !== "undefined"
+    ) {
       // Сначала снимаем устаревший заголовок: иначе /auth/me повторит его.
       // Поздний 409 старого запроса не должен сбрасывать уже новый ID.
       if (expectedUserId === requestExpectedUserId) {
@@ -231,10 +235,11 @@ export function fetchLessonQuiz(lessonId: number, signal?: AbortSignal): Promise
 export function submitQuizAttempt(
   lessonId: number,
   answers: QuizAnswerInput[],
+  clientToken?: string,
 ): Promise<QuizAttemptResult> {
   return apiRequest<QuizAttemptResult>(`/lessons/${lessonId}/quiz/attempts`, {
     method: "POST",
-    body: { answers },
+    body: { answers, client_token: clientToken },
   });
 }
 
@@ -568,6 +573,9 @@ export function fetchAiCheatsheet(signal?: AbortSignal): Promise<CheatsheetSugge
 }
 
 export async function uploadInterviewSource(file: File): Promise<InterviewSource> {
+  if (sessionStale) {
+    throw new ApiError(409, "session_changed", "Сессия изменилась");
+  }
   const form = new FormData();
   form.append("file", file);
   const headers: Record<string, string> = {};
@@ -586,6 +594,15 @@ export async function uploadInterviewSource(file: File): Promise<InterviewSource
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const error = payload?.error;
+    if (
+      response.status === 409 &&
+      response.headers.get("x-session-changed") === "1" &&
+      typeof window !== "undefined"
+    ) {
+      expectedUserId = null;
+      sessionStale = true;
+      window.dispatchEvent(new Event("loadlab:session-changed"));
+    }
     throw new ApiError(
       response.status,
       error?.code ?? "http_error",

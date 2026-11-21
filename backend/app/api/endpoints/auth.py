@@ -1,6 +1,6 @@
 """Регистрация, вход, выход и «кто я»."""
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_client_ip, get_current_user, get_session_token
@@ -123,11 +123,21 @@ def login(
     description="Удаляет сессию на сервере и очищает cookie.",
 )
 def logout(
+    request: Request,
     response: Response,
     token: str | None = Depends(get_session_token),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> None:
+    expected = request.headers.get("x-loadlab-user")
+    if token and expected is not None:
+        current = auth_service.get_user_by_session_token(db, token)
+        if current is not None and str(current.id) != expected:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Сессия изменилась",
+                headers={"X-Session-Changed": "1"},
+            )
     if token:
         auth_service.delete_session(db, token)
     _clear_session_cookie(response, settings)

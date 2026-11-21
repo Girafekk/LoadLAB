@@ -281,6 +281,9 @@ def _set_pg_timeout(db: Session, deadline: float) -> None:
 def _sqlite_sandbox(db: Session, deadline: float) -> sqlite3.Connection:
     """Создаёт песочницу и закрывает её при любой ошибке подготовки."""
     connection = sqlite3.connect(":memory:")
+    connection.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, 10_000_000)
+    connection.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH, 20_000)
+    connection.setlimit(sqlite3.SQLITE_LIMIT_COLUMN, 100)
     try:
         return _populate_sandbox(connection, db, deadline)
     except Exception:
