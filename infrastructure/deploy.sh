@@ -14,6 +14,8 @@ docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml \
   exec -T backend-prod alembic upgrade head
 docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml \
   exec -T backend-prod python -m app.db.seed
+docker compose -p loadlab-prod -f infrastructure/docker-compose.prod.yml \
+  exec -T backend-prod python -m app.db.content_loader --publish-new
 
 # Ждём healthcheck backend и проверяем, что API отвечает через прокси.
 for _ in $(seq 1 30); do

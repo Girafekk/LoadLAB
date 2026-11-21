@@ -83,6 +83,9 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      # Server components не могут ходить на публичный https://localhost:8443
+      # изнутри контейнера: используем внутренний адрес backend.
+      API_INTERNAL_URL: http://backend-prod:8000
     expose:
       - "3000"
     depends_on:
