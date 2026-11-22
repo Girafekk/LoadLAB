@@ -32,7 +32,7 @@ def _create_quiz(session: Session, lesson: Lesson, data: dict, *, published: boo
     quiz = Quiz(
         lesson_id=lesson.id,
         title=f"Проверка: {lesson.title}",
-        description="10 вопросов с объяснением каждого ответа.",
+        description=f"{len(data['questions'])} вопросов с объяснением каждого ответа.",
         is_published=published,
     )
     session.add(quiz)

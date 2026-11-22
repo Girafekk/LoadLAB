@@ -209,7 +209,7 @@ docker compose exec backend alembic upgrade head
 ```
 
 **Загрузить структуру курса и полный контент 9 недель** (70 уроков, 980 блоков,
-700 вопросов). Команду можно запускать повторно — дубли не появятся:
+704 вопроса). Команду можно запускать повторно — дубли не появятся:
 
 ```bash
 docker compose exec backend python -m app.db.content_loader --publish-new

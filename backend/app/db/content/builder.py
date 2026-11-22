@@ -47,8 +47,8 @@ def lesson(
     practice: str,
     questions: tuple[Question, ...],
 ) -> dict[str, Any]:
-    if len(questions) != 10:
-        raise ValueError(f"В уроке «{title}» должно быть 10 вопросов")
+    if not 10 <= len(questions) <= 15:
+        raise ValueError(f"В уроке «{title}» должно быть от 10 до 15 вопросов")
     return {
         "title": title,
         "summary": summary,

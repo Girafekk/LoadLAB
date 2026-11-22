@@ -38,7 +38,7 @@ def test_content_covers_all_lessons_and_quizzes():
                     assert str(content.get("src", "")).startswith("/lessons/")
 
             questions = data["questions"]
-            assert len(questions) == 10
+            assert 10 <= len(questions) <= 15
             assert {question["kind"] for question in questions} == {
                 "theory",
                 "situation",
@@ -102,7 +102,7 @@ def test_seed_content_publishes_lessons_and_quizzes(db_session):
     assert db_session.scalar(select(func.count()).select_from(Lesson)) == 70
     assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 70 * 14
     assert db_session.scalar(select(func.count()).select_from(Quiz)) == 70
-    assert db_session.scalar(select(func.count()).select_from(QuizQuestion)) == 700
+    assert db_session.scalar(select(func.count()).select_from(QuizQuestion)) == 704
 
     course = db_session.scalar(select(Course).where(Course.slug == COURSE.slug))
     assert course is not None and course.is_published
