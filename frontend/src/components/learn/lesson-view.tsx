@@ -34,16 +34,52 @@ function listOf(value: unknown): string[] {
 }
 
 /** Текст блока выводится как текст: HTML из базы не исполняется. */
+function Definitions({ text }: { text: string }) {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines[0]?.startsWith("Основные понятия")) lines.shift();
+  return (
+    <section aria-label="Основные понятия" className="rounded-xl border bg-surface/60 p-5">
+      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Основные понятия
+      </p>
+      <dl className="mt-3 space-y-4">
+        {lines.map((line, index) => {
+          const parts = line.split(/\s+—\s+/, 2);
+          if (parts.length === 2) {
+            return (
+              <div key={`${index}-${parts[0]}`}>
+                <dt className="font-semibold text-foreground">{parts[0]}</dt>
+                <dd className="mt-1 leading-relaxed text-muted-foreground">{parts[1]}</dd>
+              </div>
+            );
+          }
+          return (
+            <dd key={`${index}-${line}`} className="leading-relaxed text-muted-foreground">
+              {line}
+            </dd>
+          );
+        })}
+      </dl>
+    </section>
+  );
+}
+
 function BlockView({ block }: { block: LessonBlock }) {
   const { type, content } = block;
 
   switch (type) {
     case "heading":
       return <h2 className="text-xl font-semibold text-balance">{textOf(content.text)}</h2>;
-    case "text":
+    case "text": {
+      const value = textOf(content.text);
+      if (value.startsWith("Основные понятия")) return <Definitions text={value} />;
       return (
-        <p className="text-base leading-relaxed whitespace-pre-line">{textOf(content.text)}</p>
+        <p className="text-base leading-relaxed whitespace-pre-line">{value}</p>
       );
+    }
     case "callout":
       return (
         <aside className="rounded-lg border-l-4 border-brand bg-surface px-4 py-3 text-sm leading-relaxed">
