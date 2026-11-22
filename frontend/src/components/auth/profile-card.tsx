@@ -67,6 +67,14 @@ export function ProfileCard() {
 
       <div className="mt-6 space-y-3 border-t pt-6">
         <FormError message={error} />
+        {user.role === "admin" ? (
+          <Link
+            href="/admin"
+            className={cn(buttonVariants({ size: "lg" }), "h-10 w-full text-base")}
+          >
+            Открыть админ-панель
+          </Link>
+        ) : null}
         <Link
           href="/profile/tools"
           className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-10 w-full text-base")}

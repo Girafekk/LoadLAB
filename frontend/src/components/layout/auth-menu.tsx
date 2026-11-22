@@ -29,6 +29,17 @@ export function AuthMenu() {
 
   return (
     <div className="flex items-center gap-1">
+      {user.role === "admin" ? (
+        <Link
+          href="/admin"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "lg" }),
+            "hidden px-3 sm:inline-flex",
+          )}
+        >
+          Админ-панель
+        </Link>
+      ) : null}
       <Link
         href="/profile"
         title={user.email}
