@@ -16,6 +16,7 @@ import {
   generateInterviewAnswers,
   updateInterviewQuestion,
   uploadInterviewSource,
+  ApiError,
 } from "@/lib/api";
 import type {
   InterviewQuestion,
@@ -67,6 +68,10 @@ export function InterviewManager() {
 
   async function upload(file: File | undefined) {
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Файл больше 10 МБ. Уменьшите файл или загрузите по частям.");
+      return;
+    }
     setUploading(true);
     setError(null);
     setMessage(null);
@@ -80,8 +85,8 @@ export function InterviewManager() {
       setReloadToken((value) => value + 1);
       setAllowExternal(false);
       setAllowAnswersExternal(false);
-    } catch {
-      setError(t.uploadError);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : t.uploadError);
     } finally {
       setUploading(false);
     }
@@ -180,7 +185,7 @@ export function InterviewManager() {
       <section className="rounded-xl border bg-card p-5">
         <p className="max-w-3xl text-sm text-muted-foreground">{t.intro}</p>
         <label className="mt-4 inline-flex cursor-pointer flex-wrap items-center gap-3">
-          <span className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-brand-foreground">
+          <span className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
             {uploading ? t.uploading : t.upload}
           </span>
           <input
