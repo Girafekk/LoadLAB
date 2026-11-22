@@ -1,23 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
+import { AiTeacherPanel } from "@/components/learn/ai-teacher-panel";
 import { AnalysisTrainer } from "@/components/trainers/analysis-trainer";
 import { HttpTrainer } from "@/components/trainers/http-trainer";
 import { LinuxTrainer } from "@/components/trainers/linux-trainer";
 import { SqlTrainer } from "@/components/trainers/sql-trainer";
 import { buttonVariants } from "@/components/ui/button";
 import { trainersContent as t } from "@/content/trainers";
+import { fetchCourse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type Tab = "http" | "sql" | "linux" | "analysis";
+type Tab = "http" | "sql" | "linux" | "analysis" | "ai";
 
 export function Trainers() {
   const { status, user, version } = useAuth();
   const owner = user ? `${user.id}:${version}` : "guest";
   const [tab, setTab] = useState<Tab>("http");
+  const [aiLessonId, setAiLessonId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const controller = new AbortController();
+    fetchCourse(controller.signal)
+      .then((course) => {
+        const lesson = course.modules.flatMap((module) => module.lessons)[0];
+        setAiLessonId(lesson?.id ?? null);
+      })
+      .catch(() => setAiLessonId(null));
+    return () => controller.abort();
+  }, [status, owner]);
 
   if (status === "loading") {
     return <p className="text-sm text-muted-foreground">{t.loading}</p>;
@@ -40,7 +55,7 @@ export function Trainers() {
   return (
     <div>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label={t.title}>
-        {(["http", "sql", "linux", "analysis"] as const).map((item) => (
+        {(["http", "sql", "linux", "analysis", "ai"] as const).map((item) => (
           <button
             key={item}
             type="button"
@@ -61,6 +76,13 @@ export function Trainers() {
         {tab === "sql" ? <SqlTrainer key={`sql-${owner}`} /> : null}
         {tab === "linux" ? <LinuxTrainer key={`linux-${owner}`} /> : null}
         {tab === "analysis" ? <AnalysisTrainer key={`analysis-${owner}`} /> : null}
+        {tab === "ai" ? (
+          aiLessonId ? (
+            <AiTeacherPanel key={`ai-${aiLessonId}-${owner}`} lessonId={aiLessonId} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t.aiUnavailable}</p>
+          )
+        ) : null}
       </div>
     </div>
   );

@@ -58,7 +58,7 @@ export function MockInterview() {
         <p className="text-sm text-muted-foreground">{t.needAuth}</p>
         <Link
           href="/login?next=%2Fmock-interview"
-          className="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-medium text-brand-foreground"
+          className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
           {t.login}
         </Link>

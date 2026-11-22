@@ -8,6 +8,7 @@ export const trainersContent = {
     sql: "SQL",
     linux: "Linux",
     analysis: "Анализ",
+    ai: "AI-преподаватель",
   },
   choose: "Выберите упражнение",
   showHint: "Нужна подсказка?",
@@ -27,6 +28,7 @@ export const trainersContent = {
   cwd: "Текущая папка",
   loading: "Загружаем упражнения…",
   noExercises: "Упражнения пока недоступны.",
+  aiUnavailable: "Не удалось загрузить урок для AI-преподавателя.",
   error: "Не удалось выполнить упражнение. Попробуйте ещё раз.",
 } as const;
 
