@@ -44,7 +44,7 @@ MAX_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 200
 MAX_DOCX_PARAGRAPHS = 5_000
 MAX_IMAGE_PIXELS = 20_000_000
-ALLOWED_SUFFIXES = {".txt", ".pdf", ".docx", ".png", ".jpg", ".jpeg"}
+ALLOWED_SUFFIXES = {".txt", ".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg"}
 QUESTION_START = re.compile(
     r"^(как|что|почему|зачем|какие|какой|какая|где|чем|сколько|расскажи|опиши|"
     r"можешь|объясни|в чём|приведи|назови)\b",
@@ -162,6 +162,27 @@ def _extract_text(path: Path, suffix: str, deadline: float | None = None) -> str
 
     if suffix == ".txt":
         return path.read_text(encoding="utf-8", errors="replace")
+    if suffix == ".doc":
+        import subprocess
+
+        check_deadline()
+        try:
+            result = subprocess.run(
+                ["antiword", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired) as error:
+            raise InterviewError(
+                "Не удалось прочитать старый DOC. Пересохраните файл как DOCX или PDF."
+            ) from error
+        if result.returncode != 0 or not result.stdout.strip():
+            raise InterviewError(
+                "Не удалось прочитать старый DOC. Пересохраните файл как DOCX или PDF."
+            )
+        return result.stdout
     if suffix == ".pdf":
         from pypdf import PdfReader
 
@@ -178,11 +199,21 @@ def _extract_text(path: Path, suffix: str, deadline: float | None = None) -> str
 
         from docx import Document
 
-        with zipfile.ZipFile(path) as archive:
-            unpacked = sum(item.file_size for item in archive.infolist())
+        try:
+            with zipfile.ZipFile(path) as archive:
+                unpacked = sum(item.file_size for item in archive.infolist())
+        except zipfile.BadZipFile as error:
+            raise InterviewError(
+                "Файл не похож на DOCX. Если это старый DOC, пересохраните его в DOCX."
+            ) from error
         if unpacked > 50 * 1024 * 1024:
             raise InterviewError("DOCX распаковывается больше 50 МБ")
-        document = Document(str(path))
+        try:
+            document = Document(str(path))
+        except Exception as error:
+            raise InterviewError(
+                "DOCX повреждён или защищён паролем. Пересохраните его в Word."
+            ) from error
         if len(document.paragraphs) > MAX_DOCX_PARAGRAPHS:
             raise InterviewError("В DOCX больше 5000 абзацев")
         parts = [paragraph.text for paragraph in document.paragraphs]
@@ -380,7 +411,7 @@ def save_source(db: Session, user: User, upload: UploadFile) -> InterviewSourceR
         raise InterviewTooLarge("Файл больше 10 МБ")
     suffix = Path(upload.filename or "").suffix.lower()
     if suffix not in ALLOWED_SUFFIXES:
-        raise InterviewError("Поддерживаются TXT, PDF, DOCX, PNG и JPG")
+        raise InterviewError("Поддерживаются TXT, PDF, DOC, DOCX, PNG и JPG")
     if not content:
         raise InterviewError("Файл пустой")
     stored_name = hashlib.sha256(content).hexdigest()[:32] + "-" + uuid.uuid4().hex[:12] + suffix

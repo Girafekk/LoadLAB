@@ -190,7 +190,7 @@ export function InterviewManager() {
           </span>
           <input
             type="file"
-            accept=".txt,.pdf,.docx,.png,.jpg,.jpeg"
+            accept=".txt,.pdf,.doc,.docx,.png,.jpg,.jpeg"
             className="sr-only"
             disabled={uploading}
             onChange={(event) => {
@@ -198,7 +198,9 @@ export function InterviewManager() {
               event.target.value = "";
             }}
           />
-          <span className="text-xs text-muted-foreground">TXT, PDF, DOCX, PNG, JPG · до 10 МБ</span>
+          <span className="text-xs text-muted-foreground">
+            TXT, PDF, DOC, DOCX, PNG, JPG · до 10 МБ
+          </span>
         </label>
         <label className="mt-3 flex items-start gap-2 text-sm">
           <input

@@ -10,7 +10,7 @@ WORKDIR /app
 
 # OCR для скриншотов вопросов: английский и русский языки.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-rus \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-rus antiword \
     && rm -rf /var/lib/apt/lists/*
 
 # Сначала копируем только списки зависимостей: пока они не меняются,
