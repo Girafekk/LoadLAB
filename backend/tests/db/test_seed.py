@@ -21,13 +21,13 @@ def _count(session, model) -> int:
 
 def test_curriculum_data_matches_the_programme():
     assert len(COURSE.modules) == 9
-    assert [len(module.lessons) for module in COURSE.modules] == [7, 8, 8, 7, 8, 8, 8, 6, 10]
+    assert [len(module.lessons) for module in COURSE.modules] == [7, 8, 8, 7, 8, 8, 8, 6, 11]
 
 
 def test_seed_creates_course_structure(db_session):
     result = seed_curriculum(db_session)
 
-    assert (result.courses_created, result.modules_created, result.lessons_created) == (1, 9, 70)
+    assert (result.courses_created, result.modules_created, result.lessons_created) == (1, 9, 71)
 
     course = db_session.scalar(select(Course).where(Course.slug == "load-testing"))
     assert course.title == "Нагрузочное тестирование с нуля"
@@ -37,7 +37,7 @@ def test_seed_creates_course_structure(db_session):
         "Как делают программы: команда, роли, место тестировщика"
     )
     assert [lesson.position for lesson in course.modules[7].lessons] == list(range(1, 7))
-    assert [lesson.position for lesson in course.modules[8].lessons] == list(range(1, 11))
+    assert [lesson.position for lesson in course.modules[8].lessons] == list(range(1, 12))
     # Уроки создаются пустыми: контент — отдельный этап.
     assert _count(db_session, LessonBlock) == 0
 
@@ -49,7 +49,7 @@ def test_seed_twice_creates_no_duplicates(db_session):
     assert (second.courses_created, second.modules_created, second.lessons_created) == (0, 0, 0)
     assert _count(db_session, Course) == 1
     assert _count(db_session, Module) == 9
-    assert _count(db_session, Lesson) == 70
+    assert _count(db_session, Lesson) == 71
 
 
 def test_seed_restores_only_missing_rows(db_session):
@@ -62,7 +62,7 @@ def test_seed_restores_only_missing_rows(db_session):
     result = seed_curriculum(db_session)
 
     assert (result.courses_created, result.modules_created, result.lessons_created) == (0, 0, 1)
-    assert _count(db_session, Lesson) == 70
+    assert _count(db_session, Lesson) == 71
 
 
 def test_demo_lesson_publishes_the_course_and_first_lesson(db_session):

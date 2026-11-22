@@ -12,8 +12,8 @@ from app.models import Course, Lesson, LessonBlock, Module, Quiz, QuizQuestion
 
 
 def test_content_covers_all_lessons_and_quizzes():
-    assert sum(len(week) for week in WEEKS.values()) == 70
-    assert sum(len(module.lessons) for module in COURSE.modules) == 70
+    assert sum(len(week) for week in WEEKS.values()) == 71
+    assert sum(len(module.lessons) for module in COURSE.modules) == 71
 
     for module, week in zip(COURSE.modules, WEEKS.values(), strict=True):
         assert len(week) == len(module.lessons)
@@ -97,12 +97,12 @@ def test_seed_content_publishes_lessons_and_quizzes(db_session):
     result = seed_content(db_session)
     db_session.commit()
 
-    assert result.lessons_filled == 70
-    assert result.quizzes_created == 70
-    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 70
-    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 70 * 14
-    assert db_session.scalar(select(func.count()).select_from(Quiz)) == 70
-    assert db_session.scalar(select(func.count()).select_from(QuizQuestion)) == 704
+    assert result.lessons_filled == 71
+    assert result.quizzes_created == 71
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 71
+    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 71 * 14
+    assert db_session.scalar(select(func.count()).select_from(Quiz)) == 71
+    assert db_session.scalar(select(func.count()).select_from(QuizQuestion)) == 714
 
     course = db_session.scalar(select(Course).where(Course.slug == COURSE.slug))
     assert course is not None and course.is_published
@@ -130,7 +130,7 @@ def test_seed_content_is_idempotent(db_session):
 
     assert second.lessons_filled == 0
     assert second.quizzes_created == 0
-    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 980
+    assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == 994
 
 
 def test_loader_backfills_keys_by_title_after_reorder(db_session):
@@ -213,7 +213,7 @@ def test_seed_content_keeps_lesson_when_moved_to_another_module(db_session):
     db_session.commit()
     db_session.expire_all()
 
-    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 70
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 71
     moved = db_session.get(Lesson, first.id)
     assert moved is not None
     assert moved.module_id == destination.id
@@ -260,8 +260,8 @@ def test_refresh_requires_explicit_confirmation(db_session):
 
     refreshed = seed_content(db_session, refresh=True, confirm_refresh=True)
     db_session.commit()
-    assert refreshed.lessons_filled == 70
-    assert refreshed.quizzes_created == 70
+    assert refreshed.lessons_filled == 71
+    assert refreshed.quizzes_created == 71
 
 
 def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
@@ -299,7 +299,7 @@ def test_seed_content_keeps_reordered_lessons_paired_and_hidden(db_session):
     result = seed_content(db_session)
     db_session.commit()
 
-    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 70
+    assert db_session.scalar(select(func.count()).select_from(Lesson)) == 71
     assert result.lessons_filled == 0
     assert result.quizzes_created == 0
     assert db_session.scalar(select(func.count()).select_from(LessonBlock)) == blocks_before
