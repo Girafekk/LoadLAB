@@ -65,15 +65,7 @@ export function CourseProgress() {
 
   // Ошибку показываем раньше ожидания: иначе при первом же сбое ученик
   // навсегда видит «Загружаем программу…» и не получает кнопку «Повторить».
-  if (status === "loading" || loadedFor !== ownerKey) {
-    return (
-      <p className="mt-8 rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground">
-        {t.loadingProgram}
-      </p>
-    );
-  }
-
-  if (status === "error" || course === null) {
+  if (status === "error") {
     return (
       <div className="mt-8 rounded-xl border bg-card px-5 py-6">
         <p className="text-sm text-muted-foreground">{t.programLoadError}</p>
@@ -81,6 +73,14 @@ export function CourseProgress() {
           {t.retry}
         </Button>
       </div>
+    );
+  }
+
+  if (status === "loading" || loadedFor !== ownerKey || course === null) {
+    return (
+      <p className="mt-8 rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground">
+        {t.loadingProgram}
+      </p>
     );
   }
 
@@ -141,7 +141,10 @@ export function CourseProgress() {
             {progress.last_completed_lesson_id !== null ? (
               <Link
                 href={`/learn/lessons/${progress.last_completed_lesson_id}`}
-                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "px-4")}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "lg" }),
+                  "max-w-full whitespace-normal px-4 text-balance",
+                )}
               >
                 {t.review}
               </Link>
@@ -171,7 +174,7 @@ export function CourseProgress() {
             <li key={lesson.id}>
               <Link
                 href={`/learn/lessons/${lesson.id}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background px-4 py-3 transition-colors hover:bg-muted"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted"
               >
                 <span className="min-w-0">
                   <span className="block text-xs text-muted-foreground">

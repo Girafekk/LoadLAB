@@ -10,11 +10,13 @@ from fastapi import APIRouter, Depends
 from app.api.endpoints import (
     admin,
     admin_content,
+    admin_import,
     ai,
     auth,
     courses,
     health,
     interview,
+    interview_library,
     lessons,
     mock_interview,
     notes,
@@ -32,7 +34,9 @@ api_router.include_router(auth.router, tags=["Авторизация"])
 api_router.include_router(users.router, tags=["Пользователи"])
 api_router.include_router(admin.router, tags=["Администрирование"])
 api_router.include_router(admin_content.router, tags=["Администрирование"])
+api_router.include_router(admin_import.router, tags=["Администрирование"])
 api_router.include_router(interview.router, tags=["Администрирование"])
+api_router.include_router(interview_library.router, tags=["Собеседования"])
 api_router.include_router(mock_interview.router, tags=["Пробное собеседование"])
 api_router.include_router(courses.router, tags=["Курсы"])
 api_router.include_router(lessons.router, tags=["Уроки"])

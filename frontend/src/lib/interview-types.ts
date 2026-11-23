@@ -46,3 +46,29 @@ export type AnalyzeResult = {
 };
 
 export type LessonOption = { id: number; title: string };
+
+export type InterviewLibrarySource = {
+  id: number;
+  filename: string;
+  category: string;
+  questions_count: number;
+  created_at: string;
+};
+
+export type InterviewLibraryQuestion = {
+  id: number;
+  text: string;
+  topic: string | null;
+  difficulty: string;
+  level: string;
+  reference_answer: string | null;
+  answer_criteria: string | null;
+};
+
+export type InterviewLibraryDetail = {
+  id: number;
+  filename: string;
+  category: string;
+  questions_count: number;
+  questions: InterviewLibraryQuestion[];
+};

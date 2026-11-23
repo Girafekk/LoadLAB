@@ -7,9 +7,9 @@ export const siteConfig = {
     { label: "О платформе", href: "/#about" },
     { label: "Курс", href: "/#course" },
     { label: "Преимущества", href: "/#advantages" },
-    { label: "Скоро", href: "/#upcoming" },
     { label: "Программа", href: "/learn" },
     { label: "Тренажёры", href: "/trainers" },
-    { label: "Собеседование", href: "/mock-interview" },
+    { label: "Разборы", href: "/interviews" },
+    { label: "Пробное собеседование", href: "/mock-interview" },
   ],
 } as const;

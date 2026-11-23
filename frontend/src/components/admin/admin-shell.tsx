@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 /** Защита страниц админки на клиенте. Настоящая проверка — на сервере. */
 export function AdminShell({ children }: { children: ReactNode }) {
   const { status, user, version } = useAuth();
+  const pathname = usePathname();
 
   if (status === "loading") {
     return <p className="text-sm text-muted-foreground">{t.loading}</p>;
@@ -35,19 +37,31 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <nav aria-label={t.title} className="flex flex-wrap gap-2 border-b pb-4">
         <Link
           href="/admin"
-          className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted"
+          aria-current={pathname === "/admin" ? "page" : undefined}
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
+            pathname === "/admin" && "bg-muted",
+          )}
         >
           {t.dashboard}
         </Link>
         <Link
           href="/admin/students"
-          className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted"
+          aria-current={pathname === "/admin/students" ? "page" : undefined}
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
+            pathname === "/admin/students" && "bg-muted",
+          )}
         >
           {t.students}
         </Link>
         <Link
           href="/admin/interview"
-          className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted"
+          aria-current={pathname === "/admin/interview" ? "page" : undefined}
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
+            pathname === "/admin/interview" && "bg-muted",
+          )}
         >
           {t.interview}
         </Link>

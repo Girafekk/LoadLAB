@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.db.content.interview_faq import FAQ
+
 Block = tuple[str, dict[str, Any]]
 Question = dict[str, Any]
 
@@ -69,6 +71,10 @@ def lesson(
 
 def build_blocks(data: dict[str, Any]) -> tuple[Block, ...]:
     """14 смысловых частей урока из docs/TEACHING_METHOD.md."""
+    application = data["application"]
+    faq = FAQ.get(data["title"])
+    if faq:
+        application = f"{application}\n\n{faq}"
     return (
         ("heading", {"text": data["title"]}),
         ("callout", {"text": data["why"]}),
@@ -77,7 +83,7 @@ def build_blocks(data: dict[str, Any]) -> tuple[Block, ...]:
         ("text", {"text": data["theory"]}),
         data["visual"],
         data["example"],
-        ("callout", {"text": data["application"]}),
+        ("callout", {"text": application}),
         ("list", {"items": list(data["mistakes"])}),
         ("callout", {"text": data["summary_text"]}),
         ("callout", {"text": data["mnemonic"]}),
@@ -86,9 +92,8 @@ def build_blocks(data: dict[str, Any]) -> tuple[Block, ...]:
             "callout",
             {
                 "text": (
-                    "Квиз из 10 вопросов — под уроком. Он проверяет понимание, "
-                    "а не заучивание: ответы можно выбрать один раз, затем видно "
-                    "разбор с объяснением."
+                    "Квиз под уроком проверяет понимание, а не заучивание: ответы "
+                    "можно выбрать один раз, затем видно разбор с объяснением."
                 )
             },
         ),

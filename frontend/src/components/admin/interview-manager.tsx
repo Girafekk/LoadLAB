@@ -33,6 +33,7 @@ export function InterviewManager() {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [lessons, setLessons] = useState<LessonOption[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
+  const [page, setPage] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -65,6 +66,9 @@ export function InterviewManager() {
     () => (filter === "all" ? questions : questions.filter((item) => item.status === filter)),
     [filter, questions],
   );
+  const PAGE_SIZE = 25;
+  const pageCount = Math.max(1, Math.ceil(visibleQuestions.length / PAGE_SIZE));
+  const shownQuestions = visibleQuestions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   async function upload(file: File | undefined) {
     if (!file) return;
@@ -184,7 +188,7 @@ export function InterviewManager() {
     <div className="space-y-6">
       <section className="rounded-xl border bg-card p-5">
         <p className="max-w-3xl text-sm text-muted-foreground">{t.intro}</p>
-        <label className="mt-4 inline-flex cursor-pointer flex-wrap items-center gap-3">
+        <label className="mt-4 inline-flex cursor-pointer flex-wrap items-center gap-3 rounded-lg focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
           <span className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
             {uploading ? t.uploading : t.upload}
           </span>
@@ -252,7 +256,10 @@ export function InterviewManager() {
                 <span className="min-w-0 break-all">
                   {source.filename}
                   <span className="ml-2 text-xs text-muted-foreground">
-                    {source.questions_count} · {source.status}
+                    {source.questions_count} ·{" "}
+                    {({ extracted: "извлечён", analyzed: "разобран", error: "ошибка" } as Record<string, string>)[
+                      source.status
+                    ] ?? source.status}
                   </span>
                   {source.error ? (
                     <span className="block text-xs text-destructive">{source.error}</span>
@@ -367,7 +374,8 @@ export function InterviewManager() {
                 key={value}
                 size="sm"
                 variant={filter === value ? "default" : "outline"}
-                onClick={() => setFilter(value)}
+                aria-pressed={filter === value}
+                onClick={() => { setFilter(value); setPage(0); }}
               >
                 {t[value]}
               </Button>
@@ -378,7 +386,7 @@ export function InterviewManager() {
           <p className="mt-3 text-sm text-muted-foreground">{t.noQuestions}</p>
         ) : (
           <ol className="mt-3 space-y-3">
-            {visibleQuestions.map((question) => (
+            {shownQuestions.map((question) => (
               <li key={question.id} className="rounded-lg border p-3 text-sm">
                 <p className="break-words">{question.text}</p>
                 {question.reference_answer ? (
@@ -393,7 +401,9 @@ export function InterviewManager() {
                   </details>
                 ) : null}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{question.topic ?? "Без темы"}</Badge>
+                  <Badge variant="secondary" className="max-w-full whitespace-normal break-words">
+                    {question.topic ?? "Без темы"}
+                  </Badge>
                   <Badge variant="outline">{question.difficulty}</Badge>
                   <Badge variant="outline">{question.level}</Badge>
                   <span className="text-xs text-muted-foreground">
@@ -407,7 +417,7 @@ export function InterviewManager() {
                   <label className="text-xs text-muted-foreground">
                     {t.lesson}
                     <select
-                      className="ml-2 h-8 max-w-[260px] rounded-lg border bg-background px-2 text-sm"
+                      className="ml-2 h-8 w-full min-w-0 max-w-full rounded-lg border border-input bg-background px-2 text-sm sm:max-w-[260px]"
                       value={question.lesson_id ?? ""}
                       disabled={busyId === question.id}
                       onChange={(event) =>
@@ -445,6 +455,27 @@ export function InterviewManager() {
             ))}
           </ol>
         )}
+        {visibleQuestions.length > PAGE_SIZE ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              disabled={page === 0}
+              onClick={() => setPage((value) => Math.max(0, value - 1))}
+            >
+              ← Назад
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Страница {page + 1} из {pageCount} · {visibleQuestions.length} вопросов
+            </span>
+            <Button
+              variant="outline"
+              disabled={page + 1 >= pageCount}
+              onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}
+            >
+              Вперёд →
+            </Button>
+          </div>
+        ) : null}
       </section>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,26 @@ const ITEM_CLASSES =
 /** Выпадающее меню навигации для узких и средних экранов (до 1024 px). */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const { status, user, logout } = useAuth();
   const close = () => setOpen(false);
 
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   return (
-    <div className="lg:hidden">
+    <div className="2xl:hidden">
       <Button
+        ref={buttonRef}
         variant="ghost"
         size="icon-lg"
         onClick={() => setOpen((value) => !value)}

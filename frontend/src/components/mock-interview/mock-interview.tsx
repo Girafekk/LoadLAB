@@ -355,7 +355,7 @@ export function MockInterview() {
               onChange={(event) => setAnswer(event.target.value)}
               maxLength={6000}
               placeholder={t.answerPlaceholder}
-              className="mt-2 min-h-40 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              className="mt-2 min-h-40 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
             />
             <Button
               className="mt-3"

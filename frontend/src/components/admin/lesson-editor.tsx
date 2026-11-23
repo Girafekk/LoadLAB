@@ -22,9 +22,9 @@ import type {
 } from "@/lib/admin-types";
 
 const inputClass =
-  "h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 const textareaClass =
-  "w-full rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const BLOCK_TYPES = ["heading", "text", "code", "callout", "image", "table", "list"];
 const QUESTION_KINDS = ["theory", "situation", "analysis", "error", "decision"];
@@ -418,10 +418,20 @@ export function LessonEditor({ lessonId }: { lessonId: number }) {
                     </option>
                   ))}
                 </select>
-                <Button variant="ghost" size="sm" onClick={() => moveBlock(index, -1)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Переместить блок ${index + 1} выше`}
+                  onClick={() => moveBlock(index, -1)}
+                >
                   ↑
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => moveBlock(index, 1)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Переместить блок ${index + 1} ниже`}
+                  onClick={() => moveBlock(index, 1)}
+                >
                   ↓
                 </Button>
                 <Button

@@ -281,7 +281,7 @@ function StudyToolsContent() {
               <li key={topic.lesson_id}>
                 <Link
                   href={`/learn/lessons/${topic.lesson_id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background px-4 py-3 hover:bg-muted"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-input bg-background px-4 py-3 hover:bg-muted"
                 >
                   <span>
                     <span className="block text-sm font-medium">{topic.lesson_title}</span>
@@ -315,7 +315,7 @@ function StudyToolsContent() {
               reviewRef.current = event.target.value;
             }}
             placeholder={t.reviewPlaceholder}
-            className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           <Button size="lg" className="px-4" onClick={addReview} disabled={addingReview}>
             {t.reviewAdd}
@@ -409,7 +409,7 @@ function StudyToolsContent() {
               cheatTitleRef.current = event.target.value;
             }}
             placeholder={t.cheatsheetTitlePlaceholder}
-            className="h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           <label htmlFor="cheat-content" className="sr-only">
             {t.cheatsheetContentLabel}
@@ -423,7 +423,7 @@ function StudyToolsContent() {
               cheatContentRef.current = event.target.value;
             }}
             placeholder={t.cheatsheetContentPlaceholder}
-            className="min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           <Button
             size="lg"
@@ -450,7 +450,7 @@ function StudyToolsContent() {
                       value={editTitle}
                       maxLength={200}
                       onChange={(event) => setEditTitle(event.target.value)}
-                      className="h-9 w-full rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     />
                     <label htmlFor={`edit-content-${item.id}`} className="sr-only">
                       {t.cheatsheetEditContent}
@@ -460,7 +460,7 @@ function StudyToolsContent() {
                       value={editContent}
                       maxLength={20_000}
                       onChange={(event) => setEditContent(event.target.value)}
-                      className="min-h-24 w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     />
                     <div className="flex flex-wrap gap-2">
                       <Button

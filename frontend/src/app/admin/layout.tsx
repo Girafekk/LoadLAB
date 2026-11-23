@@ -65,7 +65,7 @@ async function AdminGate({ children }: { children: ReactNode }) {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <h1 className="mb-6 text-3xl font-semibold tracking-tight">{adminContent.title}</h1>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight break-words sm:text-3xl">{adminContent.title}</h1>
       <Suspense fallback={<p className="text-sm text-muted-foreground">{adminContent.loading}</p>}>
         <AdminGate>{children}</AdminGate>
       </Suspense>

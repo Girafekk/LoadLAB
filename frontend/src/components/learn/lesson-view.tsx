@@ -82,7 +82,7 @@ function BlockView({ block }: { block: LessonBlock }) {
     }
     case "callout":
       return (
-        <aside className="rounded-lg border-l-4 border-brand bg-surface px-4 py-3 text-sm leading-relaxed">
+        <aside className="rounded-lg border-l-4 border-brand bg-surface px-4 py-3 text-sm leading-relaxed whitespace-pre-line">
           {textOf(content.text)}
         </aside>
       );

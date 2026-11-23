@@ -41,8 +41,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         <AuthProvider>
+          <a
+            href="#main"
+            className="sr-only z-50 rounded-md bg-primary px-3 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+          >
+            К содержанию
+          </a>
           <SiteHeader />
-          <main className="flex-1">
+          <main id="main" className="flex-1">
             <SessionBoundary>{children}</SessionBoundary>
           </main>
           <SiteFooter />

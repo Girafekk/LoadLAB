@@ -26,6 +26,7 @@ export function SqlTrainer() {
         setLoaded(true);
       })
       .catch(() => {
+        if (controller.signal.aborted) return;
         setError(t.error);
         setExercises([]);
         setLoaded(true);
@@ -64,7 +65,7 @@ export function SqlTrainer() {
           setResult(null);
           setShowHint(false);
         }}
-        className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
+        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
       >
         {exercises.map((item) => (
           <option key={item.id} value={item.id}>
@@ -94,7 +95,7 @@ export function SqlTrainer() {
             id="sql-query"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="mt-1 min-h-28 w-full rounded-lg border bg-background px-3 py-2 font-mono text-sm"
+            className="mt-1 min-h-28 w-full rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm"
             spellCheck={false}
           />
           <Button className="mt-3" onClick={run} disabled={busy}>

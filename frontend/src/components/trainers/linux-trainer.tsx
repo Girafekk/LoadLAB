@@ -27,6 +27,7 @@ export function LinuxTrainer() {
         setLoaded(true);
       })
       .catch(() => {
+        if (controller.signal.aborted) return;
         setError(t.error);
         setExercises([]);
         setLoaded(true);
@@ -67,7 +68,7 @@ export function LinuxTrainer() {
           setResult(null);
           setShowHint(false);
         }}
-        className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
+        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
       >
         {exercises.map((item) => (
           <option key={item.id} value={item.id}>
@@ -100,7 +101,7 @@ export function LinuxTrainer() {
             onKeyDown={(event) => {
               if (event.key === "Enter") run();
             }}
-            className="mt-1 h-10 w-full rounded-lg border bg-background px-3 font-mono text-sm"
+            className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-sm"
             spellCheck={false}
           />
           <Button className="mt-3" onClick={run} disabled={busy}>

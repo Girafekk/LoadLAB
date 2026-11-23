@@ -62,6 +62,38 @@ export type QuizAdmin = {
 };
 
 export type BlockInput = { type: string; content: Record<string, unknown> };
+
+export type CourseImportBlock = {
+  type: string;
+  content: Record<string, unknown>;
+};
+
+export type CourseImportLesson = {
+  title: string;
+  summary: string | null;
+  position: number;
+  blocks: CourseImportBlock[];
+};
+
+export type CourseImportModule = {
+  title: string;
+  summary: string | null;
+  position: number;
+  lessons: CourseImportLesson[];
+};
+
+export type CourseImportDraft = {
+  title: string;
+  description: string | null;
+  modules: CourseImportModule[];
+  source_name?: string;
+};
+
+export type CourseImportPreview = {
+  token: string;
+  course: CourseImportDraft;
+  source_chars: number;
+};
 export type QuizPayload = {
   title: string;
   description: string | null;

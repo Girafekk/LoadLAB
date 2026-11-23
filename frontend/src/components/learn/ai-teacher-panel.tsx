@@ -86,7 +86,7 @@ export function AiTeacherPanel({ lessonId }: { lessonId: number }) {
         value={question}
         maxLength={1000}
         onChange={(event) => setQuestion(event.target.value)}
-        className="mt-1 min-h-20 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+        className="mt-1 min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
       />
       <Button className="mt-3" onClick={ask} disabled={busy || !question.trim()}>
         {busy ? t.asking : t.ask}

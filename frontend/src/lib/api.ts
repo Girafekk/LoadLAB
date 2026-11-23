@@ -27,6 +27,8 @@ import type {
   InterviewQuestion,
   InterviewReport,
   InterviewSource,
+  InterviewLibraryDetail,
+  InterviewLibrarySource,
   LessonOption,
 } from "@/lib/interview-types";
 import type {
@@ -37,6 +39,7 @@ import type {
 import type {
   BlockInput,
   CourseAdmin,
+  CourseImportPreview,
   CourseTree,
   LessonAdmin,
   LessonBriefAdmin,
@@ -455,6 +458,43 @@ export function createAdminCourse(body: {
   return apiRequest<CourseAdmin>("/admin/courses", { method: "POST", body });
 }
 
+export async function previewCourseImport(file: File): Promise<CourseImportPreview> {
+  const form = new FormData();
+  form.append("file", file);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${API_PREFIX}/admin/course-imports/preview`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    });
+  } catch {
+    throw new ApiError(0, "network_error", "Не удалось связаться с сервером");
+  }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      payload?.error?.code ?? "http_error",
+      payload?.error?.message ?? payload?.detail ?? "Не удалось разобрать файл",
+    );
+  }
+  return payload as CourseImportPreview;
+}
+
+export function approveCourseImport(token: string): Promise<{
+  course_id: number;
+  title: string;
+  modules: number;
+  lessons: number;
+}> {
+  return apiRequest(`/admin/course-imports/${token}/approve`, { method: "POST" });
+}
+
+export function cancelCourseImport(token: string): Promise<void> {
+  return apiRequest<void>(`/admin/course-imports/${token}`, { method: "DELETE" });
+}
+
 export function fetchAdminCourse(courseId: number, signal?: AbortSignal): Promise<CourseTree> {
   return apiRequest<CourseTree>(`/admin/courses/${courseId}`, { signal });
 }
@@ -751,6 +791,17 @@ export function updateInterviewQuestion(
 
 export function fetchInterviewReport(signal?: AbortSignal): Promise<InterviewReport> {
   return apiRequest<InterviewReport>("/admin/interview/report", { signal });
+}
+
+export function fetchInterviewLibrary(signal?: AbortSignal): Promise<InterviewLibrarySource[]> {
+  return apiRequest<InterviewLibrarySource[]>("/interviews/sources", { signal });
+}
+
+export function fetchInterviewLibraryItem(
+  sourceId: number,
+  signal?: AbortSignal,
+): Promise<InterviewLibraryDetail> {
+  return apiRequest<InterviewLibraryDetail>(`/interviews/sources/${sourceId}`, { signal });
 }
 
 export function fetchInterviewLessons(signal?: AbortSignal): Promise<LessonOption[]> {

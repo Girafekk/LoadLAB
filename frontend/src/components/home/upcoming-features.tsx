@@ -20,9 +20,9 @@ export function UpcomingFeatures() {
   return (
     <Section
       id="upcoming"
-      eyebrow="Скоро"
-      title="Будущие возможности платформы"
-      description="LoadLab развивается поэтапно. Уроки, прогресс, квизы и конспекты уже работают; эти функции появятся на следующих этапах."
+      eyebrow="Уже работает"
+      title="Возможности платформы"
+      description="Курс, прогресс, квизы и конспекты уже работают. Тренажёры, AI-преподаватель и подготовка к собеседованию доступны в разделе «Тренажёры»."
       className="border-t bg-surface"
     >
       <ul className="grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -31,7 +31,7 @@ export function UpcomingFeatures() {
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-base font-semibold">{feature.title}</h3>
               <Badge variant="outline" className="mt-0.5 text-muted-foreground">
-                в планах
+                доступно
               </Badge>
             </div>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.text}</p>

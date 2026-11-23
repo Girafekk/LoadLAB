@@ -71,15 +71,38 @@ export function StudentsTable() {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-x-auto rounded-xl border bg-card">
-        <table className="w-full text-left text-sm">
+      <ul className="space-y-2 sm:hidden">
+        {students.map((student) => (
+          <li key={student.id} className="rounded-xl border bg-card p-4">
+            <p className="text-sm font-medium break-all">{student.email}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {student.completed_lessons} / {student.total_lessons} ({student.percent} %)
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t.attempts}: {student.quiz_attempts} · {formatDate(student.last_activity)}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => openDetail(student)}
+            >
+              {t.studentDetails}
+            </Button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden w-full max-w-full min-w-0 overflow-x-auto rounded-xl border bg-card sm:block">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <caption className="sr-only">Прогресс учеников</caption>
           <thead className="bg-muted">
             <tr>
-              <th className="px-3 py-2">Email</th>
-              <th className="px-3 py-2">{t.progress}</th>
-              <th className="px-3 py-2">{t.attempts}</th>
-              <th className="px-3 py-2">{t.date}</th>
-              <th className="px-3 py-2" />
+              <th scope="col" className="px-3 py-2">Почта</th>
+              <th scope="col" className="px-3 py-2">{t.progress}</th>
+              <th scope="col" className="px-3 py-2">{t.attempts}</th>
+              <th scope="col" className="px-3 py-2">{t.date}</th>
+              <th scope="col" className="px-3 py-2"><span className="sr-only">Действия</span></th>
             </tr>
           </thead>
           <tbody>
