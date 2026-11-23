@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -331,11 +332,28 @@ def read_preview(token: str) -> dict[str, Any]:
     path = _draft_dir() / f"{token}.json"
     if not path.exists():
         raise CourseImportError("Предпросмотр не найден или устарел.")
+    if time.time() - path.stat().st_mtime > 24 * 60 * 60:
+        path.unlink(missing_ok=True)
+        raise CourseImportError("Предпросмотр устарел. Загрузите файл снова.")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def approve_preview(db: Session, token: str) -> Course:
-    draft = read_preview(token)
+    if not re.fullmatch(r"[a-f0-9]{32}", token):
+        raise CourseImportError("Некорректный предпросмотр.")
+    path = _draft_dir() / f"{token}.json"
+    lock = _draft_dir() / f"{token}.lock"
+    if lock.exists() or not path.exists():
+        raise CourseImportError("Предпросмотр уже создаётся или устарел.")
+    try:
+        path.replace(lock)
+    except OSError as error:
+        raise CourseImportError("Предпросмотр уже создаётся или устарел.") from error
+    try:
+        draft = json.loads(lock.read_text(encoding="utf-8"))
+    except Exception as error:  # noqa: BLE001
+        lock.unlink(missing_ok=True)
+        raise CourseImportError("Предпросмотр повреждён. Загрузите файл снова.") from error
     base_slug = slugify(draft["title"])
     slug = base_slug
     counter = 2
@@ -384,8 +402,9 @@ def approve_preview(db: Session, token: str) -> Course:
         db.commit()
     except IntegrityError as error:
         db.rollback()
+        lock.unlink(missing_ok=True)
         raise CourseImportError("Этот предпросмотр уже был создан.") from error
-    (_draft_dir() / f"{token}.json").unlink(missing_ok=True)
+    lock.unlink(missing_ok=True)
     return course
 
 
