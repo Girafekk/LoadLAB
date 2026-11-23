@@ -175,9 +175,10 @@ def _clean_course(data: dict[str, Any], fallback_title: str) -> dict[str, Any]:
         if not title:
             continue
         lessons = []
-        for lesson_index, raw_lesson in enumerate(
-            raw_module.get("lessons", [])[:MAX_LESSONS], start=1
-        ):
+        raw_lessons = raw_module.get("lessons")
+        if not isinstance(raw_lessons, list):
+            raw_lessons = []
+        for lesson_index, raw_lesson in enumerate(raw_lessons[:MAX_LESSONS], start=1):
             if not isinstance(raw_lesson, dict):
                 continue
             lesson_title = str(raw_lesson.get("title", "")).strip()[:200]
@@ -241,11 +242,17 @@ def _local_parse(text: str, fallback_title: str) -> dict[str, Any]:
         current_lesson = None
         paragraphs = []
 
+    parsed_title = fallback_title
     for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped.startswith("## "):
+        if stripped.startswith("# ") and not stripped.startswith("## "):
+            parsed_title = stripped[2:].strip()[:200]
+        elif stripped.startswith("#### "):
+            if current_lesson is not None:
+                paragraphs.append(stripped[5:].strip())
+        elif stripped.startswith("## "):
             flush_lesson()
             if current_module and current_module["lessons"]:
                 modules.append(current_module)
@@ -285,7 +292,7 @@ def _local_parse(text: str, fallback_title: str) -> dict[str, Any]:
             {"title": fallback_title[:200], "summary": None, "lessons": lessons, "position": 1}
         ]
     return {
-        "title": fallback_title[:200],
+        "title": parsed_title[:200],
         "description": None,
         "modules": modules,
     }

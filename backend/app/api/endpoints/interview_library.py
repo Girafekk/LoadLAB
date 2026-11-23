@@ -93,6 +93,8 @@ def read_source(source_id: int, db: Session = Depends(get_db)) -> dict:
         )
         .order_by(InterviewQuestion.topic, InterviewQuestion.id)
     ).all()
+    if not questions:
+        raise HTTPException(status_code=404, detail="Вопросы не найдены")
     return {
         "id": source.id,
         "filename": _display_name(source),

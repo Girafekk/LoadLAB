@@ -10,6 +10,18 @@ import { fetchInterviewLibraryItem } from "@/lib/api";
 import type { InterviewLibraryDetail } from "@/lib/interview-types";
 import { cn } from "@/lib/utils";
 
+const LABELS: Record<string, string> = {
+  junior: "базовый",
+  base: "средний",
+  extra: "продвинутый",
+  middle: "средний",
+  senior: "продвинутый",
+};
+
+function label(value: string): string {
+  return LABELS[value] ?? value;
+}
+
 export function InterviewDetail({ sourceId }: { sourceId: number | null }) {
   const [detail, setDetail] = useState<InterviewLibraryDetail | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "notfound" | "error">(
@@ -74,8 +86,8 @@ export function InterviewDetail({ sourceId }: { sourceId: number | null }) {
                 </span>
                 <span className="mt-2 flex flex-wrap gap-2 pl-6">
                   {question.topic ? (<Badge variant="outline" className="max-w-full whitespace-normal break-words">{question.topic}</Badge>) : null}
-                  <Badge variant="outline">{question.difficulty}</Badge>
-                  <Badge variant="outline">{question.level}</Badge><span className="ml-auto text-xs font-medium text-brand group-open:hidden">Показать ответ ↓</span><span className="ml-auto hidden text-xs font-medium text-brand group-open:inline">Скрыть ответ ↑</span>
+                  <Badge variant="outline">{label(question.difficulty)}</Badge>
+                  <Badge variant="outline">{label(question.level)}</Badge><span className="ml-auto text-xs font-medium text-brand group-open:hidden">Показать ответ ↓</span><span className="ml-auto hidden text-xs font-medium text-brand group-open:inline">Скрыть ответ ↑</span>
                 </span>
               </summary>
               <div className="mt-4 space-y-3 border-t pt-4 pl-6 text-sm leading-relaxed">

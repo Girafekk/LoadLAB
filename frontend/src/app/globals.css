@@ -117,8 +117,8 @@
   }
   input::placeholder,
   textarea::placeholder {
-    opacity: 1;
-    color: color-mix(in oklch, var(--muted-foreground), var(--foreground) 30%);
+    opacity: 0.7 !important;
+    color: var(--foreground) !important;
   }
   @media (prefers-reduced-motion: reduce) {
     html {

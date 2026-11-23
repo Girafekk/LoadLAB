@@ -45,6 +45,7 @@ export function RegisterForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
     const nextErrors: FieldErrors = {
       email: validateEmail(email),
       password: validateNewPassword(password),
@@ -137,7 +138,7 @@ export function RegisterForm() {
           onChange={(event) => setPasswordRepeat(event.target.value)}
           error={fieldErrors.passwordRepeat}
         />
-        <Button type="submit" size="lg" aria-busy={submitting} className="h-10 w-full text-base" disabled={submitting}>
+        <Button type="submit" size="lg" aria-busy={submitting} aria-disabled={submitting} className="h-10 w-full text-base">
           {submitting ? text.submitting : text.submit}
         </Button>
       </form>
