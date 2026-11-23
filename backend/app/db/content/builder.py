@@ -74,7 +74,11 @@ def build_blocks(data: dict[str, Any]) -> tuple[Block, ...]:
     application = data["application"]
     faq = FAQ.get(data["title"])
     if faq:
-        application = f"{application}\n\n{faq}"
+        application = (
+            f"{application}\n\nЭти вопросы выходят за рамки основного текста урока; "
+            "ответы ниже дают минимальное объяснение терминов."
+            f"\n\n{faq}"
+        )
     return (
         ("heading", {"text": data["title"]}),
         ("callout", {"text": data["why"]}),

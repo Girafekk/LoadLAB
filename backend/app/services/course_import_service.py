@@ -382,9 +382,33 @@ def approve_preview(db: Session, token: str) -> Course:
     return course
 
 
+def _docx_with_headings(path: Path) -> str:
+    """DOCX → Markdown с сохранением стилей заголовков для fallback."""
+    from docx import Document
+
+    document = Document(str(path))
+    lines: list[str] = []
+    for paragraph in document.paragraphs:
+        text = paragraph.text.strip()
+        if not text:
+            continue
+        style = (paragraph.style.name or "").casefold()
+        if "title" in style:
+            lines.append(f"# {text}")
+        elif "heading 1" in style:
+            lines.append(f"## {text}")
+        elif "heading" in style:
+            lines.append(f"### {text}")
+        else:
+            lines.append(text)
+    return "\n".join(lines)
+
+
 def extract_file(path: Path) -> str:
     try:
         suffix = ".txt" if path.suffix.lower() == ".md" else path.suffix.lower()
+        if suffix == ".docx":
+            return _docx_with_headings(path)
         return _extract_text(path, suffix)
     except InterviewError as error:
         raise CourseImportError(str(error)) from error

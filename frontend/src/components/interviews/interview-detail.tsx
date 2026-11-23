@@ -53,7 +53,7 @@ export function InterviewDetail({ sourceId }: { sourceId: number | null }) {
       </Link>
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight break-all sm:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-tight break-words [overflow-wrap:anywhere] sm:text-3xl">
             {detail.filename}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">

@@ -42,7 +42,7 @@ export function InterviewList() {
       {sources.map((source) => (
         <li key={source.id} className="flex min-w-0 flex-col rounded-xl border bg-card p-5">
           <div className="flex min-w-0 items-start justify-between gap-3">
-            <h2 className="min-w-0 text-base font-semibold break-all">{source.filename}</h2>
+            <h2 className="min-w-0 text-base font-semibold break-words [overflow-wrap:anywhere]">{source.filename}</h2>
             <div className="flex shrink-0 flex-col items-end gap-1">
               <Badge variant="secondary" className="shrink-0">
                 {t.questions(source.questions_count)}
