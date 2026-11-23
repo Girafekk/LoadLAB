@@ -343,7 +343,14 @@ def approve_preview(db: Session, token: str) -> Course:
         raise CourseImportError("Некорректный предпросмотр.")
     path = _draft_dir() / f"{token}.json"
     lock = _draft_dir() / f"{token}.lock"
-    if lock.exists() or not path.exists():
+    if lock.exists() and time.time() - lock.stat().st_mtime > 24 * 60 * 60:
+        lock.unlink(missing_ok=True)
+    if not path.exists():
+        raise CourseImportError("Предпросмотр не найден или устарел.")
+    if time.time() - path.stat().st_mtime > 24 * 60 * 60:
+        path.unlink(missing_ok=True)
+        raise CourseImportError("Предпросмотр устарел. Загрузите файл снова.")
+    if lock.exists():
         raise CourseImportError("Предпросмотр уже создаётся или устарел.")
     try:
         path.replace(lock)
@@ -410,9 +417,17 @@ def approve_preview(db: Session, token: str) -> Course:
 
 def _docx_with_headings(path: Path) -> str:
     """DOCX → Markdown с сохранением стилей заголовков для fallback."""
+    import zipfile
+
     from docx import Document
 
+    with zipfile.ZipFile(path) as archive:
+        unpacked = sum(item.file_size for item in archive.infolist())
+    if unpacked > 50 * 1024 * 1024:
+        raise CourseImportError("DOCX распаковывается больше 50 МБ")
     document = Document(str(path))
+    if len(document.paragraphs) > 5000:
+        raise CourseImportError("В DOCX больше 5000 абзацев")
     lines: list[str] = []
     for paragraph in document.paragraphs:
         text = paragraph.text.strip()
@@ -429,6 +444,9 @@ def _docx_with_headings(path: Path) -> str:
             lines.append(f"#### {text}")
         else:
             lines.append(text)
+    for table in document.tables:
+        for row in table.rows:
+            lines.append("| " + " | ".join(cell.text for cell in row.cells) + " |")
     return "\n".join(lines)
 
 
@@ -450,3 +468,4 @@ def delete_preview(token: str) -> None:
     if not re.fullmatch(r"[a-f0-9]{32}", token):
         raise CourseImportError("Некорректный предпросмотр.")
     (_draft_dir() / f"{token}.json").unlink(missing_ok=True)
+    (_draft_dir() / f"{token}.lock").unlink(missing_ok=True)

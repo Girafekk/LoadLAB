@@ -58,7 +58,9 @@ def approve(token: str, db: Session = Depends(get_db)) -> dict:
     try:
         course = service.approve_preview(db, token)
     except service.CourseImportError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from None
+        message = str(error)
+        status = 409 if "уже создаётся" in message else 404
+        raise HTTPException(status_code=status, detail=message) from None
     except IntegrityError as error:
         db.rollback()
         raise HTTPException(status_code=409, detail="Этот предпросмотр уже был создан.") from error

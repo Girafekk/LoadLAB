@@ -41,7 +41,7 @@ export function MobileNav() {
   }, [open]);
 
   return (
-    <div ref={containerRef} className="min-[1500px]:hidden">
+    <div ref={containerRef} className="min-[1400px]:hidden">
       <Button
         ref={buttonRef}
         variant="ghost"
