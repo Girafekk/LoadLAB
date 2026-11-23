@@ -68,7 +68,7 @@ services:
       # Напрямую наружу не нужен, но порт полезен для проверок и отладки.
       - "127.0.0.1:${PROD_BACKEND_PORT:-18000}:8000"
     volumes:
-      - prod_interview_uploads:/app/uploads/interview
+      - prod_interview_uploads:/app/uploads
     depends_on:
       db-prod:
         condition: service_healthy

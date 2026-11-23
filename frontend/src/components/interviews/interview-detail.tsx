@@ -83,7 +83,7 @@ export function InterviewDetail({ sourceId }: { sourceId: number | null }) {
                   <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     {t.answer}
                   </p>
-                  <p className="whitespace-pre-line">
+                  <p className="whitespace-pre-line break-words">
                     {question.reference_answer ?? t.noAnswer}
                   </p>
                 </div>
@@ -92,7 +92,7 @@ export function InterviewDetail({ sourceId }: { sourceId: number | null }) {
                     <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                       {t.criteria}
                     </p>
-                    <p className="whitespace-pre-line text-muted-foreground">
+                    <p className="whitespace-pre-line break-words text-muted-foreground">
                       {question.answer_criteria}
                     </p>
                   </div>

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -301,7 +302,7 @@ def build_preview(path: Path, text: str, fallback_title: str) -> tuple[str, dict
     except CourseImportError:
         draft = _local_parse(cleaned, fallback_title)
     token = uuid.uuid4().hex
-    draft["source_name"] = path.name
+    draft["source_name"] = fallback_title[:200]
     (_draft_dir() / f"{token}.json").write_text(
         json.dumps(draft, ensure_ascii=False), encoding="utf-8"
     )
@@ -348,7 +349,7 @@ def approve_preview(db: Session, token: str) -> Course:
                 title=lesson_data["title"],
                 summary=lesson_data.get("summary"),
                 content_key=f"import-{course.id}-{module.id}-{lesson_data['position']}",
-                estimated_minutes=90,
+                estimated_minutes=60,
                 position=lesson_data["position"],
                 is_published=False,
             )
@@ -363,7 +364,11 @@ def approve_preview(db: Session, token: str) -> Course:
                         position=position,
                     )
                 )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise CourseImportError("Этот предпросмотр уже был создан.") from error
     (_draft_dir() / f"{token}.json").unlink(missing_ok=True)
     return course
 

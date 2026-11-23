@@ -701,6 +701,10 @@ def reclassify(db: Session) -> int:
 
 
 def _guess_lesson(lessons: list[Lesson], topic: str) -> int | None:
+    if "опыт" in topic.casefold() or "поведен" in topic.casefold():
+        for lesson in lessons:
+            if "поведенческие вопросы" in lesson.title.casefold():
+                return lesson.id
     words = [
         word
         for word in re.findall(r"[a-zA-Zа-яА-ЯёЁ]{3,}", topic.casefold())

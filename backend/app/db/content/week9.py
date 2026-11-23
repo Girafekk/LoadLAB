@@ -2105,7 +2105,7 @@ LESSONS = (
             question(
                 "situation",
                 "Нужно ровно 10 RPS на транзакцию из трёх HTTP-запросов. Что использовать в JMeter?",
-                "Transaction Controller объединяет три запроса в одну транзакцию, Constant Throughput Timer задаёт целевой RPS. Считать RPS по отдельным запросам нельзя.",
+                "Transaction Controller объединяет три запроса в одну транзакцию, Constant Throughput Timer задаёт 1800 samples/min (30 запросов/с), чтобы получить 10 транзакций/с. Считать RPS по отдельным запросам нельзя.",
                 (
                     ("Transaction Controller + Constant Throughput Timer", True),
                     ("Только CSV Data Set Config", False),
