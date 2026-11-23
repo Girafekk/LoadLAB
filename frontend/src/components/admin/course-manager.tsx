@@ -222,7 +222,11 @@ function CourseImportSection({ onCreated }: { onCreated: () => void }) {
               size="sm"
               variant="outline"
               onClick={() => {
-                if (preview) void cancelCourseImport(preview.token).catch(() => {});
+                if (preview) {
+                  void cancelCourseImport(preview.token).catch((caught) => {
+                    setError(adminErrorMessage(caught));
+                  });
+                }
                 setPreview(null);
                 setFile(null);
               }}

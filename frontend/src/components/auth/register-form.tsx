@@ -71,6 +71,7 @@ export function RegisterForm() {
     } catch (error) {
       if (!mountedRef.current || versionRef.current !== startVersion) return;
       setFormError(describeAuthError(error));
+      requestAnimationFrame(() => document.getElementById("email")?.focus());
       setSubmitting(false);
     }
   }

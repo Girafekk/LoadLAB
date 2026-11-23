@@ -41,7 +41,7 @@ export function MobileNav() {
   }, [open]);
 
   return (
-    <div ref={containerRef} className="xl:hidden">
+    <div ref={containerRef} className="min-[1500px]:hidden">
       <Button
         ref={buttonRef}
         variant="ghost"
@@ -74,6 +74,13 @@ export function MobileNav() {
             <ul className="mx-auto flex max-w-6xl flex-col border-t px-4 py-2">
               {user ? (
                 <>
+                  {user.role === "admin" ? (
+                    <li>
+                      <Link href="/admin" onClick={close} className={ITEM_CLASSES}>
+                        Админ-панель
+                      </Link>
+                    </li>
+                  ) : null}
                   <li>
                     <Link href="/profile" onClick={close} className={ITEM_CLASSES}>
                       {menu.profile}

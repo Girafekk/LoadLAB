@@ -358,7 +358,7 @@ def approve_preview(db: Session, token: str) -> Course:
                 title=lesson_data["title"],
                 summary=lesson_data.get("summary"),
                 content_key=f"import-{course.id}-{module.id}-{lesson_data['position']}",
-                estimated_minutes=60,
+                estimated_minutes=max(30, min(180, 30 * len(lesson_data["blocks"]))),
                 position=lesson_data["position"],
                 is_published=False,
             )
@@ -397,8 +397,10 @@ def _docx_with_headings(path: Path) -> str:
             lines.append(f"# {text}")
         elif "heading 1" in style:
             lines.append(f"## {text}")
-        elif "heading" in style:
+        elif "heading 2" in style:
             lines.append(f"### {text}")
+        elif "heading" in style:
+            lines.append(f"#### {text}")
         else:
             lines.append(text)
     return "\n".join(lines)

@@ -41,7 +41,10 @@ async function AdminGate({ children }: { children: ReactNode }) {
   if (result.state !== "ok") {
     return (
       <div className="rounded-xl border bg-card p-6">
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight break-words sm:text-3xl">
+          {adminContent.title}
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground">
           {result.state === "error" ? adminContent.serverUnavailable : adminContent.accessDenied}
         </p>
         <Link

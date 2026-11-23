@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
@@ -26,7 +27,7 @@ MAX_BYTES = 10 * 1024 * 1024
 def preview(file: Annotated[UploadFile, File()]) -> dict:
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in service.ALLOWED:
-        raise HTTPException(status_code=422, detail="Поддерживаются TXT, PDF, DOC и DOCX")
+        raise HTTPException(status_code=422, detail="Поддерживаются TXT, MD, PDF, DOC и DOCX")
     content = file.file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
         raise HTTPException(status_code=413, detail="Файл больше 10 МБ")
@@ -58,6 +59,9 @@ def approve(token: str, db: Session = Depends(get_db)) -> dict:
         course = service.approve_preview(db, token)
     except service.CourseImportError as error:
         raise HTTPException(status_code=404, detail=str(error)) from None
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Этот предпросмотр уже был создан.") from error
     return {
         "course_id": course.id,
         "title": course.title,
