@@ -87,6 +87,7 @@ export type CourseImportDraft = {
   description: string | null;
   modules: CourseImportModule[];
   source_name?: string;
+  used_ai?: boolean;
 };
 
 export type CourseImportPreview = {

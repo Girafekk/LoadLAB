@@ -39,7 +39,7 @@ export function FormField({ id, label, hint, error, ...inputProps }: FormFieldPr
           <button
             type="button"
             onClick={() => setRevealed((value) => !value)}
-            className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-foreground hover:text-brand"
             aria-label={revealed ? "Скрыть пароль" : "Показать пароль"}
           >
             {revealed ? "скрыть" : "показать"}

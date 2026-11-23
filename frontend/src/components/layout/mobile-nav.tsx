@@ -17,6 +17,7 @@ const ITEM_CLASSES =
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { status, user, logout } = useAuth();
   const close = () => setOpen(false);
 
@@ -28,12 +29,19 @@ export function MobileNav() {
         buttonRef.current?.focus();
       }
     }
+    function onPointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    }
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [open]);
 
   return (
-    <div className="2xl:hidden">
+    <div ref={containerRef} className="xl:hidden">
       <Button
         ref={buttonRef}
         variant="ghost"

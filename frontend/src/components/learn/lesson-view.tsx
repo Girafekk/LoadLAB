@@ -57,9 +57,9 @@ function Definitions({ text }: { text: string }) {
             );
           }
           return (
-            <dd key={`${index}-${line}`} className="leading-relaxed text-muted-foreground">
+            <p key={`${index}-${line}`} className="leading-relaxed text-muted-foreground">
               {line}
-            </dd>
+            </p>
           );
         })}
       </dl>
@@ -82,9 +82,9 @@ function BlockView({ block }: { block: LessonBlock }) {
     }
     case "callout":
       return (
-        <aside className="rounded-lg border-l-4 border-brand bg-surface px-4 py-3 text-sm leading-relaxed whitespace-pre-line">
+        <div className="rounded-lg border-l-4 border-brand bg-surface px-4 py-3 text-sm leading-relaxed whitespace-pre-line">
           {textOf(content.text)}
-        </aside>
+        </div>
       );
     case "list": {
       const items = listOf(content.items);
@@ -124,7 +124,7 @@ function BlockView({ block }: { block: LessonBlock }) {
           <figcaption className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {t.lessonTable}
           </figcaption>
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="overflow-x-auto rounded-lg border" tabIndex={0}>
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-muted">
                 <tr>

@@ -27,18 +27,29 @@ export function BackendStatus() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    fetchHealth(controller.signal)
-      .then((health) => {
+    async function check(attempt = 0) {
+      try {
+        const health = await fetchHealth(controller.signal);
         setVersion(health.version);
         if (health.status !== "ok") setStatus("offline");
         else setStatus(health.database === "ok" ? "online" : "databaseUnavailable");
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setStatus("offline");
-      });
+      } catch {
+        if (controller.signal.aborted) return;
+        if (attempt === 0) {
+          timer = setTimeout(() => void check(1), 1000);
+          return;
+        }
+        setStatus("offline");
+      }
+    }
 
-    return () => controller.abort();
+    void check();
+    return () => {
+      controller.abort();
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   return (

@@ -41,8 +41,8 @@ export function ThemeToggle() {
       size="icon-lg"
       onClick={toggleTheme}
       aria-pressed={dark}
-      aria-label={dark ? "Включить светлую тему" : "Включить тёмную тему"}
-      title={dark ? "Включить светлую тему" : "Включить тёмную тему"}
+      aria-label="Тёмная тема"
+      title="Тёмная тема"
     >
       <Sun className="hidden dark:block" />
       <Moon className="dark:hidden" />

@@ -161,7 +161,7 @@ function CourseImportSection({ onCreated }: { onCreated: () => void }) {
           <span className="truncate text-muted-foreground">{file?.name ?? t.importEmpty}</span>
           <input
             type="file"
-            accept=".txt,.pdf,.doc,.docx"
+            accept=".txt,.md,.pdf,.doc,.docx"
             aria-label={t.importTitle}
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);
@@ -192,7 +192,7 @@ function CourseImportSection({ onCreated }: { onCreated: () => void }) {
           <p className="mt-1 text-xs text-muted-foreground">
             Модулей: {preview.course.modules.length} · уроков:{" "}
             {preview.course.modules.reduce((sum, module) => sum + module.lessons.length, 0)} ·{" "}
-            символов: {preview.source_chars}
+            символов: {preview.source_chars} · {preview.course.used_ai ? "AI-разбор" : "локальный разбор"}
           </p>
           <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
             {preview.course.modules.map((module) => (
@@ -201,7 +201,12 @@ function CourseImportSection({ onCreated }: { onCreated: () => void }) {
                 <ul className="mt-2 space-y-1 pl-4 text-sm text-muted-foreground">
                   {module.lessons.map((lesson) => (
                     <li key={`${module.position}-${lesson.position}-${lesson.title}`}>
-                      {lesson.title} · блоков: {lesson.blocks.length}
+                      <p>{lesson.title} · блоков: {lesson.blocks.length}</p>
+                      {typeof lesson.blocks[0]?.content.text === "string" ? (
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                          {lesson.blocks[0].content.text}
+                        </p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

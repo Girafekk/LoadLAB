@@ -17,7 +17,7 @@ from app.models import Course, Lesson, LessonBlock, Module
 from app.services.ai_teacher_service import complete_external
 from app.services.interview_service import InterviewError, _extract_text
 
-ALLOWED = {".txt", ".pdf", ".doc", ".docx"}
+ALLOWED = {".txt", ".md", ".pdf", ".doc", ".docx"}
 MAX_CHARS = 80_000
 MAX_MODULES = 12
 MAX_LESSONS = 30
@@ -303,6 +303,7 @@ def build_preview(path: Path, text: str, fallback_title: str) -> tuple[str, dict
         draft = _local_parse(cleaned, fallback_title)
     token = uuid.uuid4().hex
     draft["source_name"] = fallback_title[:200]
+    draft["used_ai"] = data is not None
     (_draft_dir() / f"{token}.json").write_text(
         json.dumps(draft, ensure_ascii=False), encoding="utf-8"
     )
@@ -375,7 +376,8 @@ def approve_preview(db: Session, token: str) -> Course:
 
 def extract_file(path: Path) -> str:
     try:
-        return _extract_text(path, path.suffix.lower())
+        suffix = ".txt" if path.suffix.lower() == ".md" else path.suffix.lower()
+        return _extract_text(path, suffix)
     except InterviewError as error:
         raise CourseImportError(str(error)) from error
     except Exception as error:  # noqa: BLE001 — повреждённый PDF/DOCX не должен давать 500

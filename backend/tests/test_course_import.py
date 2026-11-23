@@ -1,0 +1,18 @@
+from app.services.course_import_service import _local_parse, slugify
+
+
+def test_slugify_transliterates_and_cleans():
+    assert slugify("Ручное тестирование") == "ruchnoe-testirovanie"
+    assert slugify("  API / v2  ") == "api-v2"
+    assert slugify("!!!") == "imported-course"
+
+
+def test_local_parse_keeps_modules_lessons_and_lists():
+    draft = _local_parse(
+        "# Курс\n## Модуль 1\n### Урок 1\nТекст урока.\n- пункт\n"
+        "## Модуль 2\n### Урок 2\nЕщё текст.",
+        "Курс",
+    )
+    assert [module["title"] for module in draft["modules"]] == ["Модуль 1", "Модуль 2"]
+    assert draft["modules"][0]["lessons"][0]["blocks"][0]["type"] == "text"
+    assert draft["modules"][0]["lessons"][0]["blocks"][1]["type"] == "list"

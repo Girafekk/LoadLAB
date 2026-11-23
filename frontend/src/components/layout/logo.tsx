@@ -7,7 +7,7 @@ export function Logo() {
   return (
     <Link
       href="/"
-      className="flex items-center gap-2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       aria-label={`${siteConfig.name} — на главную`}
     >
       <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
