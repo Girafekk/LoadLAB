@@ -106,6 +106,17 @@ function AddLessonForm({
   );
 }
 
+function blockPreview(block: { type: string; content: Record<string, unknown> }): string {
+  const content = block.content;
+  if (typeof content.text === "string") return content.text;
+  if (Array.isArray(content.items)) return content.items.join(" · ");
+  if (Array.isArray(content.headers) && Array.isArray(content.rows)) {
+    return [content.headers.join(" | "), ...content.rows.map((row) => (Array.isArray(row) ? row.join(" | ") : ""))].join("\n");
+  }
+  if (typeof content.code === "string") return content.code;
+  return "";
+}
+
 function CourseImportSection({ onCreated }: { onCreated: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CourseImportPreview | null>(null);
@@ -202,11 +213,16 @@ function CourseImportSection({ onCreated }: { onCreated: () => void }) {
                   {module.lessons.map((lesson) => (
                     <li key={`${module.position}-${lesson.position}-${lesson.title}`}>
                       <p>{lesson.title} · блоков: {lesson.blocks.length}</p>
-                      {typeof lesson.blocks[0]?.content.text === "string" ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                          {lesson.blocks[0].content.text}
-                        </p>
-                      ) : null}
+                      <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                        {lesson.blocks.slice(0, 5).map((block, blockIndex) => {
+                          const preview = blockPreview(block);
+                          return preview ? (
+                            <li key={`${blockIndex}-${block.type}`} className="line-clamp-2">
+                              <span className="font-medium">{block.type}:</span> {preview}
+                            </li>
+                          ) : null;
+                        })}
+                      </ul>
                     </li>
                   ))}
                 </ul>
@@ -251,7 +267,36 @@ export function CourseManager() {
   const [newTitle, setNewTitle] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [newModuleTitle, setNewModuleTitle] = useState("");
+  const [dialog, setDialog] = useState<{
+    title: string;
+    value: string;
+    multiline?: boolean;
+    onSave: (value: string) => Promise<void> | void;
+  } | null>(null);
+  const [dialogSaving, setDialogSaving] = useState(false);
   const treeRequestId = useRef(0);
+
+  function askText(
+    title: string,
+    value: string,
+    onSave: (value: string) => Promise<void> | void,
+    multiline = false,
+  ) {
+    setDialog({ title, value, onSave, multiline });
+  }
+
+  async function saveDialog() {
+    if (!dialog || dialogSaving) return;
+    const value = dialog.value.trim();
+    if (!value && !dialog.multiline) return;
+    setDialogSaving(true);
+    try {
+      await dialog.onSave(value);
+      setDialog(null);
+    } finally {
+      setDialogSaving(false);
+    }
+  }
 
   function loadCourses() {
     fetchAdminCourses()
@@ -313,40 +358,43 @@ export function CourseManager() {
   }
 
   async function renameCourse(course: CourseAdmin) {
-    const title = window.prompt(t.courseName, course.title)?.trim();
-    if (!title) return;
-    try {
-      await updateAdminCourse(course.id, { title });
-      loadCourses();
-      if (tree?.id === course.id) await refreshTree();
-    } catch (error) {
-      setError(adminErrorMessage(error));
-    }
+    askText(t.courseName, course.title, async (value) => {
+      try {
+        await updateAdminCourse(course.id, { title: value });
+        loadCourses();
+        if (tree?.id === course.id) await refreshTree();
+      } catch (error) {
+        setError(adminErrorMessage(error));
+      }
+    });
   }
 
   async function editCourseDescription(course: CourseAdmin) {
-    const description = window.prompt(t.description, course.description ?? "");
-    if (description === null) return;
-    try {
-      await updateAdminCourse(course.id, {
-        description: description.trim() ? description : null,
-      });
-      loadCourses();
-      if (tree?.id === course.id) await refreshTree();
-    } catch (error) {
-      setError(adminErrorMessage(error));
-    }
+    askText(
+      t.description,
+      course.description ?? "",
+      async (value) => {
+        try {
+          await updateAdminCourse(course.id, { description: value || null });
+          loadCourses();
+          if (tree?.id === course.id) await refreshTree();
+        } catch (error) {
+          setError(adminErrorMessage(error));
+        }
+      },
+      true,
+    );
   }
 
   async function renameModule(module: ModuleAdmin) {
-    const title = window.prompt(t.moduleName, module.title)?.trim();
-    if (!title) return;
-    try {
-      await updateAdminModule(module.id, { title });
-      await refreshTree();
-    } catch (error) {
-      setError(adminErrorMessage(error));
-    }
+    askText(t.moduleName, module.title, async (value) => {
+      try {
+        await updateAdminModule(module.id, { title: value });
+        await refreshTree();
+      } catch (error) {
+        setError(adminErrorMessage(error));
+      }
+    });
   }
 
   async function moveLesson(lessonId: number, direction: "up" | "down") {
@@ -620,6 +668,47 @@ export function CourseManager() {
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {dialog ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="course-dialog-title"
+            className="w-full max-w-md rounded-xl border bg-card p-5 shadow-xl"
+          >
+            <h2 id="course-dialog-title" className="text-lg font-semibold">
+              {dialog.title}
+            </h2>
+            <label htmlFor="course-dialog-input" className="mt-3 block text-sm font-medium">
+              Значение
+            </label>
+            {dialog.multiline ? (
+              <textarea
+                id="course-dialog-input"
+                value={dialog.value}
+                onChange={(event) => setDialog({ ...dialog, value: event.target.value })}
+                className="mt-1 h-28 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              />
+            ) : (
+              <input
+                id="course-dialog-input"
+                value={dialog.value}
+                onChange={(event) => setDialog({ ...dialog, value: event.target.value })}
+                className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
+              />
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDialog(null)} disabled={dialogSaving}>
+                Отмена
+              </Button>
+              <Button onClick={() => void saveDialog()} disabled={dialogSaving}>
+                {dialogSaving ? "Сохраняю…" : "Сохранить"}
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
