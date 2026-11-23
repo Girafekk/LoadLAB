@@ -44,7 +44,11 @@ export function LoginForm() {
     };
     setFieldErrors(nextErrors);
     setFormError(null);
-    if (nextErrors.email || nextErrors.password) return;
+    if (nextErrors.email || nextErrors.password) {
+      const first = nextErrors.email ? "email" : "password";
+      requestAnimationFrame(() => document.getElementById(first)?.focus());
+      return;
+    }
 
     setSubmitting(true);
     const startVersion = version;
@@ -85,6 +89,7 @@ export function LoginForm() {
         method="post"
         action="/login"
         noValidate
+        aria-busy={submitting}
         className="space-y-5"
       >
         <FormError message={formError} />
@@ -109,7 +114,7 @@ export function LoginForm() {
           onChange={(event) => setPassword(event.target.value)}
           error={fieldErrors.password}
         />
-        <Button type="submit" size="lg" className="h-10 w-full text-base" disabled={submitting}>
+        <Button type="submit" size="lg" aria-busy={submitting} className="h-10 w-full text-base" disabled={submitting}>
           {submitting ? text.submitting : text.submit}
         </Button>
       </form>

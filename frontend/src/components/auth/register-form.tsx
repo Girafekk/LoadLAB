@@ -52,7 +52,15 @@ export function RegisterForm() {
     };
     setFieldErrors(nextErrors);
     setFormError(null);
-    if (nextErrors.email || nextErrors.password || nextErrors.passwordRepeat) return;
+    if (nextErrors.email || nextErrors.password || nextErrors.passwordRepeat) {
+      const first = nextErrors.email
+        ? "email"
+        : nextErrors.password
+          ? "password"
+          : "password-repeat";
+      requestAnimationFrame(() => document.getElementById(first)?.focus());
+      return;
+    }
 
     setSubmitting(true);
     const startVersion = version;
@@ -92,6 +100,7 @@ export function RegisterForm() {
         method="post"
         action="/register"
         noValidate
+        aria-busy={submitting}
         className="space-y-5"
       >
         <FormError message={formError} />
@@ -127,7 +136,7 @@ export function RegisterForm() {
           onChange={(event) => setPasswordRepeat(event.target.value)}
           error={fieldErrors.passwordRepeat}
         />
-        <Button type="submit" size="lg" className="h-10 w-full text-base" disabled={submitting}>
+        <Button type="submit" size="lg" aria-busy={submitting} className="h-10 w-full text-base" disabled={submitting}>
           {submitting ? text.submitting : text.submit}
         </Button>
       </form>

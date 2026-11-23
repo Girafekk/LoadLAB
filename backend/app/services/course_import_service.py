@@ -16,6 +16,7 @@ from app.core.config import get_settings
 from app.models import Course, Lesson, LessonBlock, Module
 from app.services.ai_teacher_service import complete_external
 from app.services.interview_service import InterviewError, _extract_text
+from app.services.privacy import anonymize
 
 ALLOWED = {".txt", ".md", ".pdf", ".doc", ".docx"}
 MAX_CHARS = 80_000
@@ -119,14 +120,21 @@ def _clean_blocks(raw_blocks: Any) -> list[dict[str, Any]]:
             continue
         kind = raw.get("type")
         if kind == "list":
-            items = [str(item).strip() for item in raw.get("items", []) if str(item).strip()]
+            items = [
+                str(item).strip()
+                for item in (raw.get("items") if isinstance(raw.get("items"), list) else [])
+                if str(item).strip()
+            ]
             if items:
                 blocks.append({"type": "list", "content": {"items": items[:20]}})
         elif kind == "table":
-            headers = [str(item).strip() for item in raw.get("headers", [])]
+            headers = [
+                str(item).strip()
+                for item in (raw.get("headers") if isinstance(raw.get("headers"), list) else [])
+            ]
             rows = [
                 [str(item).strip() for item in row]
-                for row in raw.get("rows", [])
+                for row in (raw.get("rows") if isinstance(raw.get("rows"), list) else [])
                 if isinstance(row, list)
             ]
             if headers and rows:
@@ -292,7 +300,7 @@ def build_preview(path: Path, text: str, fallback_title: str) -> tuple[str, dict
             f"В файле {len(cleaned)} символов, а поддерживается до {MAX_CHARS}. "
             "Разбейте материал на части."
         )
-    data = _parse_json(complete_external(*_prompt(cleaned), timeout=90))
+    data = _parse_json(complete_external(*_prompt(anonymize(cleaned)), timeout=90))
     try:
         draft = (
             _clean_course(data or {}, fallback_title)

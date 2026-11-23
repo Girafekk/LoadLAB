@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Suspense, type ReactNode } from "react";
@@ -7,11 +6,6 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { adminContent } from "@/content/admin";
 import { cn } from "@/lib/utils";
-
-export const metadata: Metadata = {
-  title: adminContent.title,
-  description: "Управление курсом, уроками, квизами и прогрессом учеников.",
-};
 
 const API_URL =
   process.env.API_INTERNAL_URL ??
@@ -65,7 +59,6 @@ async function AdminGate({ children }: { children: ReactNode }) {
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight break-words sm:text-3xl">{adminContent.title}</h1>
       <Suspense fallback={<p className="text-sm text-muted-foreground">{adminContent.loading}</p>}>
         <AdminGate>{children}</AdminGate>
       </Suspense>

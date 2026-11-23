@@ -34,6 +34,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div>
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight break-words sm:text-3xl">
+        {pathname.startsWith("/admin/students")
+          ? t.students
+          : pathname.startsWith("/admin/interview")
+            ? t.interview
+            : pathname.startsWith("/admin/lessons")
+              ? "Редактор урока"
+              : t.dashboard}
+      </h1>
       <nav aria-label={t.title} className="flex flex-wrap gap-2 border-b pb-4">
         <Link
           href="/admin"

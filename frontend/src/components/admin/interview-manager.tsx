@@ -307,7 +307,7 @@ export function InterviewManager() {
             </div>
           </div>
           {report.by_topic.length > 0 ? (
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-4 overflow-x-auto" tabIndex={0}>
               <table className="w-full min-w-[420px] text-left text-sm">
                 <thead className="text-xs text-muted-foreground">
                   <tr>

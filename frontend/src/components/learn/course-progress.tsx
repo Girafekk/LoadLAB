@@ -111,7 +111,7 @@ export function CourseProgress() {
             <p className="text-sm text-muted-foreground">
               {t.progressCount(progress.completed_lessons, progress.total_lessons)}
             </p>
-            <span className="text-sm font-semibold tabular-nums">
+            <span className="text-sm font-semibold whitespace-nowrap tabular-nums">
               {t.progressPercent(progress.percent)}
             </span>
           </div>

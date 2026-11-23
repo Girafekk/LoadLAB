@@ -30,6 +30,8 @@ export function FormField({ id, label, hint, error, ...inputProps }: FormFieldPr
         <Input
           id={id}
           className={isPassword ? "h-10 px-3 pr-12" : "h-10 px-3"}
+          required={inputProps.required ?? true}
+          aria-required={inputProps.required ?? true}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           {...inputProps}

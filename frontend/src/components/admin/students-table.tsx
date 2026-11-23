@@ -93,7 +93,7 @@ export function StudentsTable() {
         ))}
       </ul>
 
-      <div className="hidden w-full max-w-full min-w-0 overflow-x-auto rounded-xl border bg-card sm:block">
+      <div className="hidden w-full max-w-full min-w-0 overflow-x-auto rounded-xl border bg-card sm:block" tabIndex={0}>
         <table className="w-full min-w-[560px] text-left text-sm">
           <caption className="sr-only">Прогресс учеников</caption>
           <thead className="bg-muted">
