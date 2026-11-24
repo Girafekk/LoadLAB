@@ -214,7 +214,7 @@ function CourseImportSection({ onCreated }: { onCreated: () => void }) {
                     <li key={`${module.position}-${lesson.position}-${lesson.title}`}>
                       <p>{lesson.title} · блоков: {lesson.blocks.length}</p>
                       <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
-                        {lesson.blocks.slice(0, 5).map((block, blockIndex) => {
+                        {lesson.blocks.map((block, blockIndex) => {
                           const preview = blockPreview(block);
                           return preview ? (
                             <li key={`${blockIndex}-${block.type}`} className="line-clamp-2">
