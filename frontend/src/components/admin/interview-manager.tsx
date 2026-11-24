@@ -71,6 +71,8 @@ export function InterviewManager() {
       .then((data) => {
         setQuestions(data.items);
         setTotal(data.total);
+        const maxPage = Math.max(0, Math.ceil(data.total / 25) - 1);
+        if (page > maxPage) setPage(maxPage);
         setStatus("ready");
       })
       .catch(() => {

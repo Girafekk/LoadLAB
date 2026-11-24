@@ -5,8 +5,10 @@
     uvicorn app.main:app --reload --port 8001
 """
 
+import asyncio
 import json
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +16,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
+from app.services import course_import_service
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    async def janitor() -> None:
+        while True:
+            course_import_service.cleanup_drafts()
+            await asyncio.sleep(60 * 60)
+
+    task = asyncio.create_task(janitor())
+    try:
+        yield
+    finally:
+        task.cancel()
 
 
 class UploadLimitMiddleware:
@@ -98,6 +115,7 @@ def create_app() -> FastAPI:
         docs_url=f"{settings.api_v1_prefix}/docs",
         redoc_url=f"{settings.api_v1_prefix}/redoc",
         openapi_url=f"{settings.api_v1_prefix}/openapi.json",
+        lifespan=lifespan,
     )
 
     app.add_middleware(UploadLimitMiddleware)

@@ -309,6 +309,11 @@ def _cleanup_drafts() -> None:
             continue
 
 
+def cleanup_drafts() -> None:
+    """Публичная точка для фонового janitor."""
+    _cleanup_drafts()
+
+
 def build_preview(path: Path, text: str, fallback_title: str) -> tuple[str, dict[str, Any]]:
     _cleanup_drafts()
     cleaned = text.strip()
