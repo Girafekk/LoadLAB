@@ -23,6 +23,11 @@ export type InterviewQuestion = {
   answer_criteria: string | null;
 };
 
+export type InterviewQuestionPage = {
+  items: InterviewQuestion[];
+  total: number;
+};
+
 export type InterviewReport = {
   total_questions: number;
   approved: number;

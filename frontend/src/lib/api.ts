@@ -25,6 +25,7 @@ import type {
 import type {
   AnalyzeResult,
   InterviewQuestion,
+  InterviewQuestionPage,
   InterviewReport,
   InterviewSource,
   InterviewLibraryDetail,
@@ -777,6 +778,17 @@ export function fetchInterviewQuestions(
 ): Promise<InterviewQuestion[]> {
   const query = status ? `?status=${status}` : "";
   return apiRequest<InterviewQuestion[]>(`/admin/interview/questions${query}`, { signal });
+}
+
+export function fetchInterviewQuestionPage(
+  status: string | undefined,
+  offset: number,
+  limit: number,
+  signal?: AbortSignal,
+): Promise<InterviewQuestionPage> {
+  const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+  if (status) params.set("status", status);
+  return apiRequest<InterviewQuestionPage>(`/admin/interview/questions/page?${params}`, { signal });
 }
 
 export function updateInterviewQuestion(

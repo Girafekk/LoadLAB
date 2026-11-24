@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
@@ -75,6 +75,28 @@ def list_questions(
     if topic:
         query = query.where(InterviewQuestion.topic == topic)
     return [InterviewQuestionRead.model_validate(item) for item in db.scalars(query)]
+
+
+@router.get("/questions/page", response_model=dict)
+def question_page(
+    status: str | None = Query(default=None),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=25, ge=1, le=100),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    condition = InterviewQuestion.status == status if status else None
+    count_query = select(func.count()).select_from(InterviewQuestion)
+    query = select(InterviewQuestion).order_by(InterviewQuestion.id)
+    if condition is not None:
+        count_query = count_query.where(condition)
+        query = query.where(condition)
+    total = db.scalar(count_query) or 0
+    items = db.scalars(query.offset(offset).limit(limit)).all()
+    return {
+        "items": [InterviewQuestionRead.model_validate(item).model_dump() for item in items],
+        "total": total,
+    }
 
 
 @router.patch("/questions/{question_id}", response_model=InterviewQuestionRead)

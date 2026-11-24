@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { interviewContent as t } from "@/content/interview";
 import {
   analyzeInterviewSource,
   fetchInterviewLessons,
-  fetchInterviewQuestions,
+  fetchInterviewQuestionPage,
   fetchInterviewReport,
   fetchInterviewSources,
   approveAllInterviewQuestions,
@@ -34,6 +34,7 @@ export function InterviewManager() {
   const [lessons, setLessons] = useState<LessonOption[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -47,28 +48,39 @@ export function InterviewManager() {
     const controller = new AbortController();
     Promise.all([
       fetchInterviewSources(controller.signal),
-      fetchInterviewQuestions(undefined, controller.signal),
       fetchInterviewReport(controller.signal),
       fetchInterviewLessons(controller.signal),
     ])
-      .then(([nextSources, nextQuestions, nextReport, nextLessons]) => {
+      .then(([nextSources, nextReport, nextLessons]) => {
         setSources(nextSources);
-        setQuestions(nextQuestions);
         setReport(nextReport);
         setLessons(nextLessons);
-        setStatus("ready");
       })
       .catch(() => setStatus("error"));
     return () => controller.abort();
   }, [reloadToken]);
 
-  const visibleQuestions = useMemo(
-    () => (filter === "all" ? questions : questions.filter((item) => item.status === filter)),
-    [filter, questions],
-  );
-  const PAGE_SIZE = 25;
-  const pageCount = Math.max(1, Math.ceil(visibleQuestions.length / PAGE_SIZE));
-  const shownQuestions = visibleQuestions.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchInterviewQuestionPage(
+      filter === "all" ? undefined : filter,
+      page * 25,
+      25,
+      controller.signal,
+    )
+      .then((data) => {
+        setQuestions(data.items);
+        setTotal(data.total);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setStatus("error");
+      });
+    return () => controller.abort();
+  }, [filter, page, reloadToken]);
+
+  const pageCount = Math.max(1, Math.ceil(total / 25));
+  const shownQuestions = questions;
 
   async function upload(file: File | undefined) {
     if (!file) return;
@@ -382,7 +394,7 @@ export function InterviewManager() {
             ))}
           </div>
         </div>
-        {visibleQuestions.length === 0 ? (
+        {total === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">{t.noQuestions}</p>
         ) : (
           <ol className="mt-3 space-y-3">
@@ -455,7 +467,7 @@ export function InterviewManager() {
             ))}
           </ol>
         )}
-        {visibleQuestions.length > PAGE_SIZE ? (
+        {total > 25 ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
@@ -465,7 +477,7 @@ export function InterviewManager() {
               ← Назад
             </Button>
             <span className="text-sm text-muted-foreground">
-              Страница {page + 1} из {pageCount} · {visibleQuestions.length} вопросов
+              Страница {page + 1} из {pageCount} · {total} вопросов
             </span>
             <Button
               variant="outline"
