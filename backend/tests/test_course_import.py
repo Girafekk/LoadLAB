@@ -1,4 +1,21 @@
+import os
+import time
+
+from app.services import course_import_service as service
 from app.services.course_import_service import _local_parse, slugify
+
+
+def test_cleanup_drafts_removes_old_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(service, "_draft_dir", lambda: tmp_path)
+    old = tmp_path / "old.json"
+    fresh = tmp_path / "fresh.json"
+    old.write_text("{}", encoding="utf-8")
+    fresh.write_text("{}", encoding="utf-8")
+    old_time = time.time() - 25 * 60 * 60
+    os.utime(old, (old_time, old_time))
+    service.cleanup_drafts()
+    assert not old.exists()
+    assert fresh.exists()
 
 
 def test_slugify_transliterates_and_cleans():

@@ -66,10 +66,12 @@ def analyze_source(
 def list_questions(
     status: str | None = Query(default=None),
     topic: str | None = Query(default=None),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> list[InterviewQuestionRead]:
-    query = select(InterviewQuestion).order_by(InterviewQuestion.id)
+    query = select(InterviewQuestion).order_by(InterviewQuestion.id).offset(offset).limit(limit)
     if status:
         query = query.where(InterviewQuestion.status == status)
     if topic:
