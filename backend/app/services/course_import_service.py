@@ -299,7 +299,18 @@ def _local_parse(text: str, fallback_title: str) -> dict[str, Any]:
     }
 
 
+def _cleanup_drafts() -> None:
+    now = time.time()
+    for draft in _draft_dir().glob("*"):
+        try:
+            if now - draft.stat().st_mtime > 24 * 60 * 60:
+                draft.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
 def build_preview(path: Path, text: str, fallback_title: str) -> tuple[str, dict[str, Any]]:
+    _cleanup_drafts()
     cleaned = text.strip()
     if len(cleaned) < 100:
         raise CourseImportError("В файле слишком мало текста для курса.")
@@ -343,15 +354,18 @@ def approve_preview(db: Session, token: str) -> Course:
         raise CourseImportError("Некорректный предпросмотр.")
     path = _draft_dir() / f"{token}.json"
     lock = _draft_dir() / f"{token}.lock"
-    if lock.exists() and time.time() - lock.stat().st_mtime > 24 * 60 * 60:
-        lock.unlink(missing_ok=True)
-    if not path.exists():
-        raise CourseImportError("Предпросмотр не найден или устарел.")
-    if time.time() - path.stat().st_mtime > 24 * 60 * 60:
-        path.unlink(missing_ok=True)
-        raise CourseImportError("Предпросмотр устарел. Загрузите файл снова.")
-    if lock.exists():
-        raise CourseImportError("Предпросмотр уже создаётся или устарел.")
+    try:
+        if lock.exists() and time.time() - lock.stat().st_mtime > 24 * 60 * 60:
+            lock.unlink(missing_ok=True)
+        if not path.exists():
+            raise CourseImportError("Предпросмотр не найден или устарел.")
+        if time.time() - path.stat().st_mtime > 24 * 60 * 60:
+            path.unlink(missing_ok=True)
+            raise CourseImportError("Предпросмотр устарел. Загрузите файл снова.")
+        if lock.exists():
+            raise CourseImportError("Предпросмотр уже создаётся или устарел.")
+    except FileNotFoundError as error:
+        raise CourseImportError("Предпросмотр уже создаётся или устарел.") from error
     try:
         path.replace(lock)
     except OSError as error:
