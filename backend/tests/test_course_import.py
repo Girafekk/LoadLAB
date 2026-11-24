@@ -1,8 +1,28 @@
 import os
 import time
 
+from docx import Document
+
 from app.services import course_import_service as service
-from app.services.course_import_service import _local_parse, slugify
+from app.services.course_import_service import _docx_with_headings, _local_parse, slugify
+
+
+def test_docx_headings_and_tables_keep_structure(tmp_path):
+    path = tmp_path / "course.docx"
+    document = Document()
+    document.add_heading("Курс", level=0)
+    document.add_heading("Модуль", level=1)
+    document.add_heading("Урок", level=2)
+    document.add_heading("Теория", level=3)
+    table = document.add_table(rows=1, cols=2)
+    table.rows[0].cells[0].text = "Параметр"
+    table.rows[0].cells[1].text = "Значение"
+    document.save(path)
+    text = _docx_with_headings(path)
+    assert "## Модуль" in text
+    assert "### Урок" in text
+    assert "#### Теория" in text
+    assert "Параметр" in text and "Значение" in text
 
 
 def test_cleanup_drafts_removes_old_files(tmp_path, monkeypatch):

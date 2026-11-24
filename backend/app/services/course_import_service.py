@@ -439,6 +439,8 @@ def _docx_with_headings(path: Path) -> str:
     import zipfile
 
     from docx import Document
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
 
     with zipfile.ZipFile(path) as archive:
         unpacked = sum(item.file_size for item in archive.infolist())
@@ -448,24 +450,27 @@ def _docx_with_headings(path: Path) -> str:
     if len(document.paragraphs) > 5000:
         raise CourseImportError("В DOCX больше 5000 абзацев")
     lines: list[str] = []
-    for paragraph in document.paragraphs:
-        text = paragraph.text.strip()
-        if not text:
-            continue
-        style = (paragraph.style.name or "").casefold()
-        if "title" in style:
-            lines.append(f"# {text}")
-        elif "heading 1" in style:
-            lines.append(f"## {text}")
-        elif "heading 2" in style:
-            lines.append(f"### {text}")
-        elif "heading" in style:
-            lines.append(f"#### {text}")
-        else:
-            lines.append(text)
-    for table in document.tables:
-        for row in table.rows:
-            lines.append("| " + " | ".join(cell.text for cell in row.cells) + " |")
+    for child in document.element.body.iterchildren():
+        if child.tag.endswith("}p"):
+            paragraph = Paragraph(child, document)
+            text = paragraph.text.strip()
+            if not text:
+                continue
+            style = (paragraph.style.name or "").casefold()
+            if "title" in style:
+                lines.append(f"# {text}")
+            elif "heading 1" in style:
+                lines.append(f"## {text}")
+            elif "heading 2" in style:
+                lines.append(f"### {text}")
+            elif "heading" in style:
+                lines.append(f"#### {text}")
+            else:
+                lines.append(text)
+        elif child.tag.endswith("}tbl"):
+            table = Table(child, document)
+            for row in table.rows:
+                lines.append("| " + " | ".join(cell.text for cell in row.cells) + " |")
     return "\n".join(lines)
 
 
