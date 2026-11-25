@@ -15,6 +15,19 @@ from app.models import (
 
 router = APIRouter(prefix="/interviews", tags=["Собеседования"])
 
+LEVEL_LABELS = {
+    "junior": "базовый",
+    "base": "средний",
+    "middle": "средний",
+    "senior": "продвинутый",
+    "extra": "продвинутый",
+}
+
+
+def _label(value: str) -> str:
+    return LEVEL_LABELS.get(value, value)
+
+
 # Публичный раздел: все approved-ответы, но с честной категорией.
 # Промпт и учебные PDF не выдаём за реальные собеседования.
 CATEGORY_BY_ID = {
@@ -107,6 +120,8 @@ def read_source(source_id: int, db: Session = Depends(get_db)) -> dict:
                 "topic": item.topic,
                 "difficulty": item.difficulty,
                 "level": item.level,
+                "difficulty_label": _label(item.difficulty),
+                "level_label": _label(item.level),
                 "reference_answer": item.reference_answer,
                 "answer_criteria": item.answer_criteria,
             }

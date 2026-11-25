@@ -66,6 +66,8 @@ export type InterviewLibraryQuestion = {
   topic: string | null;
   difficulty: string;
   level: string;
+  difficulty_label: string;
+  level_label: string;
   reference_answer: string | null;
   answer_criteria: string | null;
 };
