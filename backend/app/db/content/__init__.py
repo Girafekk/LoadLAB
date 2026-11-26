@@ -1,6 +1,18 @@
 """Контент курса по неделям. Каждая неделя — отдельный файл."""
 
+import random
+
 from app.db.content import week1, week2, week3, week4, week5, week6, week7, week8, week9
+
+
+def shuffle_quiz_options(lessons: tuple[dict, ...]) -> None:
+    """Детерминированно перемешивает варианты, чтобы верный не был всегда первым."""
+    for lesson in lessons:
+        for index, question in enumerate(lesson["questions"]):
+            options = list(question["options"])
+            random.Random(f"{lesson['title']}:{index}").shuffle(options)
+            question["options"] = tuple(options)
+
 
 WEEKS = {
     1: week1.LESSONS,
@@ -13,3 +25,6 @@ WEEKS = {
     8: week8.LESSONS,
     9: week9.LESSONS,
 }
+
+for week_lessons in WEEKS.values():
+    shuffle_quiz_options(week_lessons)
