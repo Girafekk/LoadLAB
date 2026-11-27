@@ -28,6 +28,21 @@ export function SiteFooter() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/glossary" className="text-muted-foreground hover:text-foreground">
+                Словарь
+              </Link>
+            </li>
+            <li>
+              <Link href="/final-project" className="text-muted-foreground hover:text-foreground">
+                Финальный проект
+              </Link>
+            </li>
+            <li>
+              <Link href="/jmeter-simulator" className="text-muted-foreground hover:text-foreground">
+                JMeter-симулятор
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>

@@ -14,7 +14,7 @@ export function SiteHeader() {
       <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo />
 
-        <nav aria-label="Основная навигация" className="hidden min-[1400px]:block">
+        <nav aria-label="Основная навигация" className="hidden min-[1600px]:block">
           <ul className="flex items-center gap-1">
             {siteConfig.nav.map((item) => (
               <li key={item.href}>

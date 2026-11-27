@@ -33,6 +33,11 @@ import type {
   LessonOption,
 } from "@/lib/interview-types";
 import type {
+  ExamModule,
+  ExamQuestions,
+  ExamResult,
+} from "@/lib/exam-types";
+import type {
   MockAnswerResult,
   MockReport,
   MockSession,
@@ -247,6 +252,26 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
 
 export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return apiRequest<HealthResponse>("/health", { signal });
+}
+
+export function fetchExamModules(signal?: AbortSignal): Promise<ExamModule[]> {
+  return apiRequest<ExamModule[]>("/exams/modules", { signal });
+}
+
+export function fetchExamQuestions(
+  moduleId: number,
+  limit: number,
+  signal?: AbortSignal,
+): Promise<ExamQuestions> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (moduleId) params.set("module_id", String(moduleId));
+  return apiRequest<ExamQuestions>(`/exams/questions?${params}`, { signal });
+}
+
+export function submitExam(
+  answers: { question_id: number; option_ids: number[] }[],
+): Promise<ExamResult> {
+  return apiRequest<ExamResult>("/exams/submit", { method: "POST", body: { answers } });
 }
 
 export async function registerUser(credentials: Credentials): Promise<SessionUser> {

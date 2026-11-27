@@ -141,6 +141,15 @@ export function Trainers() {
           ) : null}
         </div>
       </div>
+      <div className="mt-8 rounded-xl border bg-card p-4">
+        <p className="text-sm font-medium">Проверить конфигурацию перед JMeter-прогоном</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Симулятор проверит потоки, ramp-up, think time и путь запроса.
+        </p>
+        <Link href="/jmeter-simulator" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3")}>
+          Открыть JMeter-симулятор
+        </Link>
+      </div>
     </div>
   );
 }

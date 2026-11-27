@@ -10,6 +10,7 @@ export const siteConfig = {
     { label: "Программа", href: "/learn" },
     { label: "Тренажёры", href: "/trainers" },
     { label: "Разборы", href: "/interviews" },
+    { label: "Экзамен", href: "/exams" },
     { label: "Пробное собеседование", href: "/mock-interview" },
   ],
 } as const;

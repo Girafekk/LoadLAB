@@ -14,6 +14,7 @@ from app.api.endpoints import (
     ai,
     auth,
     courses,
+    exams,
     health,
     interview,
     interview_library,
@@ -39,6 +40,7 @@ api_router.include_router(interview.router, tags=["Администрирова�
 api_router.include_router(interview_library.router, tags=["Собеседования"])
 api_router.include_router(mock_interview.router, tags=["Пробное собеседование"])
 api_router.include_router(courses.router, tags=["Курсы"])
+api_router.include_router(exams.router, tags=["Экзамены"])
 api_router.include_router(lessons.router, tags=["Уроки"])
 api_router.include_router(quizzes.router, tags=["Квизы"])
 api_router.include_router(notes.router)
