@@ -1,8 +1,10 @@
 """Административный разбор материалов собеседований."""
 
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -121,6 +123,81 @@ def update_question(
         )
     except interview_service.InterviewError as error:
         raise HTTPException(status_code=404, detail=str(error)) from None
+
+
+class ReviewUpdate(BaseModel):
+    status: str
+    comment: str | None = None
+    reference_answer: str | None = None
+    answer_criteria: str | None = None
+
+
+@router.get("/review")
+def review_queue(
+    status: str | None = Query(default=None),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=25, ge=1, le=100),
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    query = select(InterviewQuestion).order_by(InterviewQuestion.id)
+    count_query = select(func.count()).select_from(InterviewQuestion)
+    if status in {"pending", "approved", "rejected"}:
+        query = query.where(InterviewQuestion.review_status == status)
+        count_query = count_query.where(InterviewQuestion.review_status == status)
+    total = db.scalar(count_query) or 0
+    items = db.scalars(query.offset(offset).limit(limit)).all()
+    counts = dict(
+        db.execute(
+            select(InterviewQuestion.review_status, func.count()).group_by(
+                InterviewQuestion.review_status
+            )
+        ).all()
+    )
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "text": item.text,
+                "topic": item.topic,
+                "reference_answer": item.reference_answer,
+                "answer_criteria": item.answer_criteria,
+                "review_status": item.review_status,
+                "review_comment": item.review_comment,
+            }
+            for item in items
+        ],
+        "total": total,
+        "counts": counts,
+    }
+
+
+@router.patch("/{question_id}/review")
+def review_question(
+    question_id: int,
+    data: ReviewUpdate,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    item = db.get(InterviewQuestion, question_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Вопрос не найден")
+    if data.status not in {"pending", "approved", "rejected"}:
+        raise HTTPException(status_code=422, detail="Некорректный статус проверки")
+    item.review_status = data.status
+    item.review_comment = data.comment
+    item.reviewed_at = datetime.now(UTC)
+    item.reviewed_by_id = user.id
+    if data.reference_answer is not None:
+        item.reference_answer = data.reference_answer
+    if data.answer_criteria is not None:
+        item.answer_criteria = data.answer_criteria
+    if data.status == "rejected":
+        item.status = "rejected"
+    elif data.status == "approved":
+        item.status = "approved"
+    db.commit()
+    return {"id": item.id, "review_status": item.review_status}
 
 
 @router.get("/report", response_model=InterviewReport)

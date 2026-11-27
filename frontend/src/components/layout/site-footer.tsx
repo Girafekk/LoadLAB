@@ -29,6 +29,11 @@ export function SiteFooter() {
               </li>
             ))}
             <li>
+              <Link href="/search" className="text-muted-foreground hover:text-foreground">
+                Поиск
+              </Link>
+            </li>
+            <li>
               <Link href="/glossary" className="text-muted-foreground hover:text-foreground">
                 Словарь
               </Link>

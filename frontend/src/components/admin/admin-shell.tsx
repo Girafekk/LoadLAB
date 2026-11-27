@@ -39,9 +39,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
           ? t.students
           : pathname.startsWith("/admin/interview")
             ? t.interview
-            : pathname.startsWith("/admin/lessons")
-              ? "Редактор урока"
-              : t.dashboard}
+            : pathname.startsWith("/admin/answers")
+              ? "Проверка ответов"
+              : pathname.startsWith("/admin/lessons")
+                ? "Редактор урока"
+                : t.dashboard}
       </h1>
       <nav aria-label={t.title} className="flex flex-wrap gap-2 border-b pb-4">
         <Link
@@ -73,6 +75,16 @@ export function AdminShell({ children }: { children: ReactNode }) {
           )}
         >
           {t.interview}
+        </Link>
+        <Link
+          href="/admin/answers"
+          aria-current={pathname === "/admin/answers" ? "page" : undefined}
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm font-medium hover:bg-muted",
+            pathname === "/admin/answers" && "bg-muted",
+          )}
+        >
+          Ответы
         </Link>
       </nav>
       <div key={`${user.id}:${version}`} className="mt-6">

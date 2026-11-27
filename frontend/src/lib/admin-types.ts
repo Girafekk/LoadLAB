@@ -105,6 +105,22 @@ export type QuizPayload = {
   expected_quiz_id?: number;
 };
 
+export type ReviewItem = {
+  id: number;
+  text: string;
+  topic: string | null;
+  reference_answer: string | null;
+  answer_criteria: string | null;
+  review_status: string;
+  review_comment: string | null;
+};
+
+export type ReviewQueue = {
+  items: ReviewItem[];
+  total: number;
+  counts: Record<string, number>;
+};
+
 export type StudentProgress = {
   id: number;
   email: string;

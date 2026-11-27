@@ -52,6 +52,7 @@ import type {
   ModuleAdmin,
   QuizAdmin,
   QuizPayload,
+  ReviewQueue,
   StudentProgress,
   StudentProgressDetail,
 } from "@/lib/admin-types";
@@ -272,6 +273,21 @@ export function submitExam(
   answers: { question_id: number; option_ids: number[] }[],
 ): Promise<ExamResult> {
   return apiRequest<ExamResult>("/exams/submit", { method: "POST", body: { answers } });
+}
+
+export type SearchResult = {
+  type: string;
+  title: string;
+  context: string;
+  url: string;
+};
+
+export function searchCourse(query: string, signal?: AbortSignal): Promise<{
+  query: string;
+  total: number;
+  results: SearchResult[];
+}> {
+  return apiRequest(`/search?q=${encodeURIComponent(query)}`, { signal });
 }
 
 export async function registerUser(credentials: Credentials): Promise<SessionUser> {
@@ -828,6 +844,29 @@ export function updateInterviewQuestion(
 
 export function fetchInterviewReport(signal?: AbortSignal): Promise<InterviewReport> {
   return apiRequest<InterviewReport>("/admin/interview/report", { signal });
+}
+
+export function fetchReviewQueue(
+  status: string | undefined,
+  offset: number,
+  limit: number,
+  signal?: AbortSignal,
+): Promise<ReviewQueue> {
+  const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+  if (status) params.set("status", status);
+  return apiRequest<ReviewQueue>(`/admin/interview/review?${params}`, { signal });
+}
+
+export function reviewInterviewAnswer(
+  id: number,
+  body: {
+    status: "pending" | "approved" | "rejected";
+    comment?: string | null;
+    reference_answer?: string | null;
+    answer_criteria?: string | null;
+  },
+): Promise<{ id: number; review_status: string }> {
+  return apiRequest(`/admin/interview/${id}/review`, { method: "PATCH", body });
 }
 
 export function fetchInterviewLibrary(signal?: AbortSignal): Promise<InterviewLibrarySource[]> {
